@@ -52,8 +52,11 @@ class Situation:
     linked_to_other_fraud: bool = False
     """The case connects to a shared device profile or another card's fraud (R2, 3a)."""
 
+    undocumented_pattern: bool = False
+    """The activity fits none of the five documented patterns (3a reporting factor)."""
+
     coordinated_undocumented: bool = False
-    """Activity fits no known pattern but shows coordinated abuse across customers (R9)."""
+    """Activity fits no known pattern and shows coordinated abuse across customers (R9)."""
 
     evidence_conflicts: bool = False
     cards_with_confirmed_fraud: int = 0
@@ -163,6 +166,8 @@ def report_decision(s: Situation, awaiting_evidence: bool) -> ReportDecision:
         mandated.append("R6: fraud across several cards shares an origin")
     if s.coordinated_undocumented:
         mandated.append("R9: coordinated abuse fitting no known pattern")
+    elif s.undocumented_pattern:
+        mandated.append("3a: the pattern is undocumented")
     if s.linked_to_other_fraud:
         mandated.append("3a: activity connects to a shared device profile or another card's fraud")
     if mandated:

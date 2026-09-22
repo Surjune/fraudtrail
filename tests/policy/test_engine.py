@@ -209,6 +209,20 @@ def test_r9_undocumented_coordinated_files_and_escalates() -> None:
     assert {A.CREATE_CASE, A.FILE_REPORT, A.ESCALATE_TO_ANALYST} <= set(d.action_names)
 
 
+def test_undocumented_single_card_pattern_reports_without_escalating() -> None:
+    """Closed cases CC-3748 and similar: under-$500 bursts were filed but not escalated."""
+    d = decide(
+        dispute(
+            fraud_probability=0.9,
+            independent_evidence=3,
+            exposure_usd=450.0,
+            undocumented_pattern=True,
+        )
+    )
+    assert d.action_names == [A.BLOCK_CARD, A.CREATE_CASE, A.FILE_REPORT]
+    assert "undocumented" in d.report.reason
+
+
 @pytest.mark.parametrize(
     ("confirmed_cards", "expected"), [(1, A.BLOCK_CARD), (2, A.BLOCK_ALL_CARDS)]
 )

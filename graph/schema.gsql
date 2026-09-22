@@ -1,0 +1,133 @@
+# FraudTrail graph schema (TigerGraph 4.2+).
+#
+# Evidence layer: customers, cards, transactions and the entities that connect them.
+# Memory layer: the bank's closed cases and this agent's own investigations, with every
+# step recorded as a CaseEvent so a case's progression can be replayed from the graph.
+# Knowledge layer: policy, pattern and regulatory text chunks for GraphRAG.
+#
+# Only the raw columns the investigation uses are attributes here. The full 393-column
+# table stays in Parquet and is read by the feature queries when an unnamed Vesta
+# feature is cited as evidence.
+
+CREATE VERTEX Customer (PRIMARY_ID customer_id STRING) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX Card (
+    PRIMARY_ID card_id STRING,
+    customer_id STRING,
+    network STRING,
+    card_type STRING,
+    first_seen DATETIME,
+    last_seen DATETIME,
+    txn_count INT,
+    community_id INT
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX Transaction (
+    PRIMARY_ID txn_id STRING,
+    ts DATETIME,
+    amount DOUBLE,
+    product_cd STRING,
+    channel STRING,
+    risk_score DOUBLE,
+    region STRING,
+    country STRING,
+    dist1 DOUBLE,
+    dist2 DOUBLE,
+    device_status STRING,
+    proxy STRING,
+    m_flags STRING,
+    c_counts LIST<DOUBLE>,
+    d_deltas LIST<DOUBLE>
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX DeviceProfile (
+    PRIMARY_ID profile_id STRING,
+    device_info STRING,
+    os STRING,
+    browser STRING,
+    screen STRING,
+    device_type STRING
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX EmailDomain (PRIMARY_ID domain STRING) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX BillingRegion (PRIMARY_ID region STRING) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX Pattern (
+    PRIMARY_ID name STRING,
+    description STRING,
+    documented BOOL
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX ClosedCase (
+    PRIMARY_ID case_id STRING,
+    outcome STRING,
+    pattern STRING,
+    opened_at DATETIME,
+    closed_at DATETIME,
+    exposure_usd DOUBLE,
+    n_txns INT,
+    actions_taken STRING,
+    report_filed BOOL,
+    analyst_notes STRING
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX InvestigationCase (
+    PRIMARY_ID case_id STRING,
+    exam_case_id STRING,
+    trigger_type STRING,
+    status STRING,
+    verdict STRING,
+    fraud_probability DOUBLE,
+    pattern STRING,
+    pattern_description STRING,
+    exposure_usd DOUBLE,
+    summary STRING,
+    report_filed BOOL,
+    opened_at DATETIME,
+    updated_at DATETIME
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX CaseEvent (
+    PRIMARY_ID event_id STRING,
+    step INT,
+    kind STRING,
+    detail STRING,
+    at DATETIME
+) WITH primary_id_as_attribute="true"
+
+CREATE VERTEX DocChunk (
+    PRIMARY_ID chunk_id STRING,
+    source STRING,
+    section STRING,
+    content STRING
+) WITH primary_id_as_attribute="true"
+
+# Evidence layer
+CREATE UNDIRECTED EDGE OWNS (FROM Customer, TO Card)
+CREATE UNDIRECTED EDGE MADE (FROM Card, TO Transaction)
+CREATE UNDIRECTED EDGE FROM_DEVICE (FROM Transaction, TO DeviceProfile)
+CREATE UNDIRECTED EDGE PURCHASER_EMAIL (FROM Transaction, TO EmailDomain)
+CREATE UNDIRECTED EDGE RECIPIENT_EMAIL (FROM Transaction, TO EmailDomain)
+CREATE UNDIRECTED EDGE BILLED_IN (FROM Transaction, TO BillingRegion)
+CREATE DIRECTED EDGE NEXT (FROM Transaction, TO Transaction, gap_minutes DOUBLE) WITH REVERSE_EDGE="PREV"
+
+# Memory layer: the bank's closed cases
+CREATE UNDIRECTED EDGE INVOLVES (FROM ClosedCase, TO Transaction)
+CREATE UNDIRECTED EDGE ON_CARD (FROM ClosedCase, TO Card)
+CREATE UNDIRECTED EDGE CONNECTED_TO (FROM ClosedCase, TO Card)
+CREATE UNDIRECTED EDGE CASE_PATTERN (FROM ClosedCase, TO Pattern)
+
+# Memory layer: this agent's investigations
+CREATE UNDIRECTED EDGE INV_ON_CARD (FROM InvestigationCase, TO Card)
+CREATE UNDIRECTED EDGE INV_FLAGGED (FROM InvestigationCase, TO Transaction)
+CREATE UNDIRECTED EDGE INV_AFFECTS (FROM InvestigationCase, TO Transaction)
+CREATE UNDIRECTED EDGE INV_CONNECTED_CARD (FROM InvestigationCase, TO Card)
+CREATE UNDIRECTED EDGE INV_DEVICE (FROM InvestigationCase, TO DeviceProfile)
+CREATE UNDIRECTED EDGE INV_PATTERN (FROM InvestigationCase, TO Pattern)
+CREATE UNDIRECTED EDGE INV_SIMILAR_CLOSED (FROM InvestigationCase, TO ClosedCase)
+CREATE UNDIRECTED EDGE INV_SIMILAR_INV (FROM InvestigationCase, TO InvestigationCase)
+CREATE UNDIRECTED EDGE INV_CITES (FROM InvestigationCase, TO DocChunk)
+CREATE UNDIRECTED EDGE HAS_EVENT (FROM InvestigationCase, TO CaseEvent)
+
+CREATE GRAPH FraudTrail (*)

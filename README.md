@@ -18,7 +18,10 @@ suspicious activity report. Every answer file passes a validator before it is wr
 | --- | --- |
 | `src/fraudtrail/policy/` | Fraud Policy v1.0 as code: actions, routes, thresholds, rules |
 | `src/fraudtrail/answer/` | Answer-file schema and validation |
+| `src/fraudtrail/data/` | Derived identifiers (card IDs, device profiles) as shared SQL |
 | `scripts/profile_data.py` | Dataset profiling that the graph design depends on |
+| `docs/data_findings.md` | What profiling established |
+| `graph/` | TigerGraph schema and vector attributes |
 | `cases/` | One answer file per exam case |
 | `tests/` | Unit tests |
 

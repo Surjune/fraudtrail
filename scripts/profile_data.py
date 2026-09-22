@@ -25,6 +25,8 @@ from pathlib import Path
 
 import duckdb
 
+from fraudtrail.data.sql import card_join_condition, card_keys_sql, device_profile_sql
+
 log = logging.getLogger("profile_data")
 
 REPO = Path(__file__).resolve().parent.parent
@@ -34,11 +36,9 @@ REPO = Path(__file__).resolve().parent.parent
 DUCKDB_MEMORY_LIMIT = "2GB"
 DUCKDB_THREADS = 2
 
-# Exploratory tolerance for "same amount" when looking for recurring charges (R7). The
-# README says amounts carry small offsets; this is widened or narrowed once the offsets
-# are visible in the data.
-RECURRING_ABS_TOLERANCE_USD = 1.0
-RECURRING_REL_TOLERANCE = 0.02
+# Tolerance for "same amount" when looking for recurring charges (R7). The dataset's
+# amount offsets stay within about $0.10 (a $100 charge appears as $99.94 to $100.09).
+RECURRING_TOLERANCE_USD = 0.15
 
 # Pattern 1 ("often under $5") and R5 ("within an hour"), used only as a hint here.
 CARD_TESTING_SMALL_AUTH_USD = 5.0
@@ -67,10 +67,7 @@ CARD_KEY_CANDIDATES: tuple[tuple[str, ...], ...] = (
     ("card2", "card3", "card4", "card5", "card6", "addr1"),
 )
 
-DEVICE_PROFILE_SQL = (
-    "coalesce(i.DeviceInfo, '') || ' | ' || coalesce(i.id_30, '') || ' | ' "
-    "|| coalesce(i.id_31, '') || ' | ' || coalesce(i.id_33, '')"
-)
+DEVICE_PROFILE_SQL = device_profile_sql("i")
 
 
 class Report:
@@ -108,7 +105,7 @@ def _cell(value: object) -> str:
     if value is None:
         return ""
     if isinstance(value, float):
-        return f"{value:.4g}"
+        return f"{value:.2f}" if abs(value) >= 1 else f"{value:.4g}"
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
@@ -147,9 +144,11 @@ def connect(raw: Path, processed: Path) -> duckdb.DuckDBPyConnection:
     _to_parquet(con, raw / "identity.csv", id_parquet)
 
     con.execute(f"CREATE VIEW tx_raw AS SELECT * FROM read_parquet('{tx_parquet.as_posix()}')")
+    con.execute(f"CREATE TABLE card_keys AS {card_keys_sql('tx_raw')}")
     con.execute(
-        "CREATE VIEW tx AS SELECT CAST(TransactionID AS VARCHAR) AS txn_id, "
-        "CAST(ts AS TIMESTAMP) AS ts_at, * FROM tx_raw"
+        "CREATE VIEW tx AS SELECT CAST(t.TransactionID AS VARCHAR) AS txn_id, k.card_id, "
+        "CAST(t.ts AS TIMESTAMP) AS ts_at, t.* FROM tx_raw t "
+        f"JOIN card_keys k ON {card_join_condition('t', 'k')}"
     )
     con.execute(
         f"CREATE VIEW ident AS SELECT CAST(TransactionID AS VARCHAR) AS txn_id, * "
@@ -209,9 +208,9 @@ def section_ids(r: Report) -> None:
 def section_case_pack(r: Report) -> None:
     r.h("Case pack integrity")
     r.table(
-        f"SELECT cp.case_id, cp.trigger_type, cp.flagged_txn_id, cp.card_id, cp.customer_id, "
-        f"t.customer_id AS txn_customer, t.ts_at, t.TransactionAmt, t.ProductCD, t.channel, "
-        f"t.addr1, t.addr2, t.risk_score, i.id_15 AS device_status, i.id_23 AS proxy, "
+        f"SELECT cp.case_id, cp.trigger_type, cp.flagged_txn_id, cp.card_id, "
+        f"t.card_id = cp.card_id AS card_rule_ok, t.ts_at, t.TransactionAmt, t.ProductCD, "
+        f"t.channel, t.addr1, t.addr2, t.risk_score, i.id_15 AS device_status, i.id_23 AS proxy, "
         f"{DEVICE_PROFILE_SQL} AS device_profile "
         f"FROM cp LEFT JOIN tx t ON t.txn_id = cp.flagged_txn_id "
         f"LEFT JOIN ident i ON i.txn_id = cp.flagged_txn_id ORDER BY cp.case_id"
@@ -251,21 +250,21 @@ def section_card_ids(r: Report) -> None:
     results.sort(key=lambda row: min(row[1], row[2]), reverse=True)
     r.text(_markdown_table(["key", "card_consistent", "key_unique"], results))
 
-    best = results[0][0].split(" + ")
-    key = " || '|' || ".join(f"coalesce(CAST({col} AS VARCHAR), '')" for col in best)
-    r.text(f"Numbering rule check for the best key ({' + '.join(best)}):")
+    r.text(
+        "Confirmed rule: a customer's cards are their distinct (card4, card6) pairs, "
+        "numbered K1, K2, ... in ascending order with nulls first. Check against every "
+        "labelled transaction in the closed cases and the case pack:"
+    )
     r.table(
-        f"WITH k AS (SELECT customer_id, {key} AS k, min(ts_at) AS first_ts, count(*) AS n "
-        f"FROM tx GROUP BY ALL), "
-        f"ranked AS (SELECT *, row_number() OVER (PARTITION BY customer_id ORDER BY first_ts) "
-        f"AS r_time, row_number() OVER (PARTITION BY customer_id ORDER BY n DESC) AS r_count "
-        f"FROM k), "
-        f"labels AS (SELECT DISTINCT customer_id, card_id, {key} AS k FROM cc_joined) "
-        f"SELECT avg(CASE WHEN 'K' || r_time = split_part(card_id, '-', 2) THEN 1.0 ELSE 0.0 "
-        f"END) AS first_seen_order, "
-        f"avg(CASE WHEN 'K' || r_count = split_part(card_id, '-', 2) THEN 1.0 ELSE 0.0 END) "
-        f"AS volume_order, count(*) AS labelled_cards "
-        f"FROM labels JOIN ranked USING (customer_id, k)"
+        "WITH labels AS (SELECT DISTINCT card_id, txn_id FROM cc_txn "
+        "UNION SELECT DISTINCT card_id, flagged_txn_id FROM cp) "
+        "SELECT count(*) AS labelled_txns, "
+        "avg(CASE WHEN t.card_id = l.card_id THEN 1.0 ELSE 0.0 END) AS rule_matches "
+        "FROM labels l JOIN tx t ON t.txn_id = l.txn_id"
+    )
+    r.table(
+        "SELECT cards_per_customer, count(*) AS customers FROM (SELECT customer_id, "
+        "count(*) AS cards_per_customer FROM card_keys GROUP BY 1) GROUP BY 1 ORDER BY 1"
     )
 
 
@@ -390,8 +389,8 @@ def section_identity(r: Report) -> None:
 def section_exam_cases(r: Report) -> None:
     r.h("Exam cases: first look")
     r.text(
-        "Per customer, not per card, until the card ID rule is confirmed. History counts "
-        "only transactions before the case opened."
+        "Per card, using the confirmed card ID rule. History counts only transactions "
+        "before the flagged one."
     )
     r.execute(
         "CREATE TEMP TABLE exam AS SELECT cp.case_id, cp.trigger_type, "
@@ -405,7 +404,7 @@ def section_exam_cases(r: Report) -> None:
         "sum(CASE WHEN h.addr1 = e.addr1 THEN 1 ELSE 0 END) AS prior_in_flagged_region, "
         "mode(h.addr1) AS home_region, median(h.TransactionAmt) AS median_prior_amount, "
         "sum(CASE WHEN h.ProductCD = e.ProductCD THEN 1 ELSE 0 END) AS prior_same_product "
-        "FROM exam e LEFT JOIN tx h ON h.customer_id = e.customer_id AND h.ts_at < e.ts_at "
+        "FROM exam e LEFT JOIN tx h ON h.card_id = e.card_id AND h.ts_at < e.ts_at "
         "GROUP BY ALL ORDER BY e.case_id"
     )
     r.h("Recurring-charge candidates (R7)", 3)
@@ -414,15 +413,15 @@ def section_exam_cases(r: Report) -> None:
         f"similar_txns, count(DISTINCT date_trunc('month', h.ts_at)) AS distinct_months, "
         f"string_agg(strftime(h.ts_at, '%Y-%m-%d') || ' $' || CAST(h.TransactionAmt AS "
         f"VARCHAR), ', ' ORDER BY h.ts_at) AS matches "
-        f"FROM exam e LEFT JOIN tx h ON h.customer_id = e.customer_id "
+        f"FROM exam e LEFT JOIN tx h ON h.card_id = e.card_id "
         f"AND h.txn_id <> e.txn_id AND h.ProductCD = e.ProductCD "
-        f"AND abs(h.TransactionAmt - e.TransactionAmt) <= greatest({RECURRING_ABS_TOLERANCE_USD}, "
-        f"{RECURRING_REL_TOLERANCE} * e.TransactionAmt) GROUP BY ALL ORDER BY e.case_id"
+        f"AND abs(h.TransactionAmt - e.TransactionAmt) <= {RECURRING_TOLERANCE_USD} "
+        f"GROUP BY ALL ORDER BY e.case_id"
     )
     r.h("Card-testing hint (R5)", 3)
     r.table(
         f"SELECT e.case_id, count(h.txn_id) AS small_online_auths_in_prior_hour "
-        f"FROM exam e LEFT JOIN tx h ON h.customer_id = e.customer_id "
+        f"FROM exam e LEFT JOIN tx h ON h.card_id = e.card_id "
         f"AND h.channel = 'online' AND h.TransactionAmt < {CARD_TESTING_SMALL_AUTH_USD} "
         f"AND h.ts_at BETWEEN e.ts_at - INTERVAL {CARD_TESTING_WINDOW_MINUTES} MINUTE AND e.ts_at "
         f"AND h.txn_id <> e.txn_id GROUP BY ALL ORDER BY e.case_id"
