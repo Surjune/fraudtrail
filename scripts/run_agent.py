@@ -17,16 +17,28 @@ import logging
 from pathlib import Path
 
 from fraudtrail.answer.build import build_answer
-from fraudtrail.answer.narration import TemplateNarrator
+from fraudtrail.answer.llm_narration import LlmNarrator
+from fraudtrail.answer.narration import Narrator, TemplateNarrator
 from fraudtrail.answer.validate import Level, check_answer
 from fraudtrail.casepack import load_case_pack
-from fraudtrail.config import load_settings
+from fraudtrail.config import Settings, load_settings
 from fraudtrail.evidence.duckdb_provider import DuckDbProvider
 from fraudtrail.investigate.runner import investigate
+from fraudtrail.llm.client import build_client
 
 log = logging.getLogger("run_agent")
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def build_narrator(settings: Settings) -> Narrator:
+    """The model when one is configured, templates when not. Both write every answer."""
+    client = build_client(settings.llm)
+    if client is None:
+        log.info("no model configured: writing the prose from templates")
+        return TemplateNarrator()
+    log.info("prose from %s %s", settings.llm.provider.value, settings.llm.model)
+    return LlmNarrator(client)
 
 
 def main() -> None:
@@ -48,7 +60,7 @@ def main() -> None:
         cases = tuple(case for case in cases if case.case_id in wanted)
 
     provider = DuckDbProvider.open(settings.raw_dir, settings.processed_dir)
-    narrator = TemplateNarrator()
+    narrator = build_narrator(settings)
     args.out.mkdir(parents=True, exist_ok=True)
 
     failures = 0

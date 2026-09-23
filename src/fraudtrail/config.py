@@ -58,6 +58,9 @@ class LlmSettings:
     provider: LlmProvider
     model: str
     api_key: str
+    base_url: str = ""
+    """Only for an OpenAI-compatible endpoint that is not OpenAI's own, which is how
+    most free tiers are served. Empty means the provider's default."""
 
     @property
     def enabled(self) -> bool:
@@ -106,6 +109,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
             provider=provider,
             model=os.environ.get("FRAUDTRAIL_LLM_MODEL", "").strip(),
             api_key=os.environ.get("FRAUDTRAIL_LLM_API_KEY", "").strip(),
+            base_url=os.environ.get("FRAUDTRAIL_LLM_BASE_URL", "").strip(),
         ),
         embedding_model=os.environ.get(
             "FRAUDTRAIL_EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"
