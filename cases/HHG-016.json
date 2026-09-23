@@ -41,8 +41,8 @@
       "CC-4333"
     ],
     "summary": "Customer C09988 disputed a $59.67 online purchase online on card C09988-K1. The identity record marks the device as New for this account (Windows |  | edge 16.0 | ). The cardholder reported that they did not make the flagged purchase. Assessed as fraud at 0.92, with 59.67 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
-    "written_to_graph": false,
-    "graph_case_id": ""
+    "written_to_graph": true,
+    "graph_case_id": "CASE-HHG-016"
   },
   "evidence_requests": [],
   "next_best_actions": {
@@ -83,5 +83,5 @@
   "stop_reason": "6: probability 0.92 on 2 independent pieces of evidence is decisive",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 0.87
+  "latency_s": 1.07
 }

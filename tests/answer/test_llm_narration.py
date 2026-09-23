@@ -132,3 +132,11 @@ def test_unreachable_model_falls_back_without_raising() -> None:
     assert n.summary(NARRATION) == SOURCE_SUMMARY
     assert n.calls == 0
     assert n.rejected == 2
+
+
+def test_the_narrator_stops_calling_a_model_that_keeps_failing() -> None:
+    n = LlmNarrator(FailingClient(), fallback=cast(Narrator, StubFallback()))
+    for _ in range(5):
+        assert n.summary(NARRATION) == SOURCE_SUMMARY
+    # Two failures are enough to give up; the three later calls never reach the client.
+    assert n.rejected == 2

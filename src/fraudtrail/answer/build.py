@@ -23,6 +23,7 @@ from fraudtrail.casepack import ExamCase
 from fraudtrail.domain import CaseStatus, Pattern, Verdict, Verification
 from fraudtrail.evidence.models import CaseEvidence
 from fraudtrail.investigate.detectors import Detection
+from fraudtrail.investigate.gather import ToolCall
 from fraudtrail.investigate.scoring import Assessment
 from fraudtrail.investigate.simulator import SimulatedResponse
 from fraudtrail.policy.engine import Decision, verdict_for
@@ -51,6 +52,9 @@ class InvestigationResult:
     final: Decision
     response: SimulatedResponse | None
     asked_after_step: int
+    calls: tuple[ToolCall, ...]
+    """Every evidence query this investigation made, in order, for the case event trail."""
+
     graph_case_id: str
     written_to_graph: bool
     cost: RunCost

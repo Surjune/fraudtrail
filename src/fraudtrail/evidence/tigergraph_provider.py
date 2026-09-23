@@ -119,6 +119,11 @@ class TigerGraphProvider:
     def from_env(cls, settings: Settings | None = None) -> TigerGraphProvider:
         return cls(GraphClient.from_env(settings))
 
+    @property
+    def client(self) -> GraphClient:
+        """The authenticated connection, shared with whatever writes cases back."""
+        return self._client
+
     def _run(self, name: str, params: JsonDict) -> JsonDict:
         try:
             return _merge(self._client.run_query(name, params))

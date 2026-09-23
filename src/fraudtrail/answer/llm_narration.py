@@ -37,6 +37,10 @@ DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 # A model asked for plain text sometimes wraps it in a code fence anyway.
 FENCE = re.compile(r"^```[a-z]*\n|\n```$")
 
+# Two failures in a row mean the key, the quota or the network is gone rather than one
+# request being unlucky, and every further attempt pays the full retry backoff.
+FAILURES_BEFORE_GIVING_UP = 2
+
 SYSTEM = (
     "You write for a bank's fraud investigations team. The passage you are given was "
     "assembled from templates: the facts in it are correct and complete, but it reads "
@@ -96,6 +100,8 @@ class LlmNarrator:
         self.calls = 0
         self.tokens = 0
         self.rejected = 0
+        self._failures = 0
+        self._given_up = False
 
     def summary(self, n: Narration) -> str:
         source = self._fallback.summary(n)
@@ -128,12 +134,22 @@ class LlmNarrator:
         return spent
 
     def _rewrite(self, source: str, prompt: str, low: int, high: int) -> str:
+        if self._given_up:
+            return source
         try:
             completion = self._client.complete(SYSTEM, prompt)
         except LlmError as exc:
             self.rejected += 1
-            log.warning("model unavailable, keeping the templated text: %s", exc)
+            self._failures += 1
+            if self._failures >= FAILURES_BEFORE_GIVING_UP:
+                self._given_up = True
+                # A daily quota does not come back inside one run, and each attempt costs
+                # the full backoff. Finish on templates instead of stalling every case.
+                log.warning("model unreachable twice; writing the rest from templates")
+            else:
+                log.warning("model unavailable, keeping the templated text: %s", exc)
             return source
+        self._failures = 0
         self.calls += 1
         self.tokens += completion.tokens
 

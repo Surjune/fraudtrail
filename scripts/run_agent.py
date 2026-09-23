@@ -25,6 +25,7 @@ from fraudtrail.config import Settings, load_settings
 from fraudtrail.evidence.duckdb_provider import DuckDbProvider
 from fraudtrail.evidence.provider import EvidenceProvider
 from fraudtrail.evidence.tigergraph_provider import TigerGraphProvider
+from fraudtrail.graph.memory import GraphMemory
 from fraudtrail.investigate.runner import investigate
 from fraudtrail.llm.client import build_client
 
@@ -72,6 +73,9 @@ def main() -> None:
 
     provider = build_provider(settings, offline=args.offline)
     narrator = build_narrator(settings)
+    # The graph provider already holds an authenticated client; an offline run has none,
+    # so its cases stay local and say so in the answer file.
+    memory = GraphMemory(provider.client) if isinstance(provider, TigerGraphProvider) else None
     args.out.mkdir(parents=True, exist_ok=True)
 
     failures = 0
@@ -81,6 +85,11 @@ def main() -> None:
         if isinstance(narrator, LlmNarrator):
             # The prose is written last, so the model's cost is known only now.
             answer = answer.model_copy(update={"tokens": narrator.take_tokens()})
+        if memory is not None and memory.write(result, answer):
+            stored = answer.case.model_copy(
+                update={"written_to_graph": True, "graph_case_id": result.graph_case_id}
+            )
+            answer = answer.model_copy(update={"case": stored})
         issues = check_answer(answer, trigger=case.trigger)
         errors = [i for i in issues if i.level is Level.ERROR]
         for issue in issues:

@@ -82,8 +82,8 @@
       "CC-4942"
     ],
     "summary": "Customer C02354 disputed a $39.08 in-person purchase in billing region 126 on card C02354-K2. 19 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The cardholder reported that they did not make the flagged purchase. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.08, with 2,346.00 USD exposure; recommended actions are CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD.",
-    "written_to_graph": false,
-    "graph_case_id": ""
+    "written_to_graph": true,
+    "graph_case_id": "CASE-HHG-018"
   },
   "evidence_requests": [
     {
@@ -150,5 +150,5 @@
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 10,
   "tokens": 0,
-  "latency_s": 5.29
+  "latency_s": 5.22
 }

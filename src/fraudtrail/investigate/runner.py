@@ -8,7 +8,6 @@ the prose; the graph stores the result as memory for the next case.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from time import perf_counter
 
 from fraudtrail.answer.build import InvestigationResult, RunCost
@@ -25,9 +24,6 @@ from fraudtrail.policy.engine import Decision, Situation, decide
 log = logging.getLogger(__name__)
 
 CASE_ID_PREFIX = "CASE"
-
-MemoryWriter = Callable[[ExamCase, InvestigationResult], bool]
-"""Stores a finished investigation in the graph; returns whether it was written."""
 
 
 def graph_case_id(case: ExamCase) -> str:
@@ -67,12 +63,7 @@ def build_situation(
     )
 
 
-def investigate(
-    provider: EvidenceProvider,
-    case: ExamCase,
-    memory_writer: MemoryWriter | None = None,
-    tokens_used: int = 0,
-) -> InvestigationResult:
+def investigate(provider: EvidenceProvider, case: ExamCase) -> InvestigationResult:
     started = perf_counter()
     gathered = gather(provider, case)
     detection = detect(gathered.evidence, case.trigger)
@@ -115,18 +106,15 @@ def investigate(
         final=final,
         response=response,
         asked_after_step=gathered.call_count + memory_calls,
+        calls=gathered.calls,
         graph_case_id=graph_case_id(case),
         written_to_graph=False,
         cost=RunCost(
             tool_calls=gathered.call_count + memory_calls,
-            tokens=tokens_used,
+            tokens=0,
             latency_s=perf_counter() - started,
         ),
     )
-
-    if memory_writer is not None:
-        written = memory_writer(case, result)
-        result = InvestigationResult(**{**result.__dict__, "written_to_graph": written})
 
     log.info(
         "%s: %s p=%.2f exposure=$%.2f actions=%s",
