@@ -1,0 +1,87 @@
+{
+  "case_id": "HHG-016",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.92,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3534820"
+    ],
+    "first_suspicious_txn_id": "3534820",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows |  | edge 16.0 | "
+    ],
+    "exposure_usd": 59.67,
+    "evidence": [
+      {
+        "claim": "The identity record marks the device as New for this account (Windows |  | edge 16.0 | )",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3534820"
+        ]
+      },
+      {
+        "claim": "The cardholder reported that they did not make the flagged purchase",
+        "source": "customer",
+        "ref": "case_pack:trigger_text",
+        "entity_ids": [
+          "3534820"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5263",
+      "CC-5217",
+      "CC-4523",
+      "CC-4362",
+      "CC-4333"
+    ],
+    "summary": "Customer C09988 disputed a $59.67 online purchase online on card C09988-K1. The identity record marks the device as New for this account (Windows |  | edge 16.0 | ). The cardholder reported that they did not make the flagged purchase. Assessed as fraud at 0.92, with 59.67 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder reported they did not make the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder reported they did not make the transaction; 3a: customer disputes a charge"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder reported they did not make the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder reported they did not make the transaction; 3a: customer disputes a charge"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: probability 0.92 on 2 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 3.26
+}

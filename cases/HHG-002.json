@@ -1,0 +1,107 @@
+{
+  "case_id": "HHG-002",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.96,
+    "pattern": "card_not_present_fraud",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3478782"
+    ],
+    "first_suspicious_txn_id": "3478782",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 292.36,
+    "evidence": [
+      {
+        "claim": "The bank's model scored the flagged transaction at 0.79; above 0.70 most flagged transactions in this book turn out legitimate",
+        "source": "graph",
+        "ref": "attribute:Transaction.risk_score",
+        "entity_ids": [
+          "3478782"
+        ]
+      },
+      {
+        "claim": "$292.36 is 9.7 standard deviations above this card's usual $44.66",
+        "source": "graph",
+        "ref": "query:card_baseline(card_id)",
+        "entity_ids": [
+          "3478782"
+        ]
+      },
+      {
+        "claim": "1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-4160"
+        ]
+      },
+      {
+        "claim": "Cardholder states they did not make these purchases and still has the card in their possession",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": [
+          "3478782"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4160",
+      "CC-5557",
+      "CC-5553",
+      "CC-5552",
+      "CC-5551"
+    ],
+    "summary": "The bank's model scored a $292.36 online purchase online on card C11891-K1 at 0.79. The bank's model scored the flagged transaction at 0.79; above 0.70 most flagged transactions in this book turn out legitimate. $292.36 is 9.7 standard deviations above this card's usual $44.66. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.96, with 292.36 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Cardholder states they did not make these purchases and still has the card in their possession"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "5: probability 0.65 is not decisive; ask the cardholder before acting"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "3a: evidence requested"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder denied the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder denied the transaction; 3a: case opened earlier in this investigation"
+      }
+    ],
+    "what_changed": "The assumed response (denied) probability moved from 0.65 to 0.96; the recommendation is now BLOCK_CARD, CREATE_CASE; VERIFY_WITH_CUSTOMER no longer applies."
+  },
+  "sar": {
+    "file": false,
+    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: the cardholder's denial settles the question",
+  "tool_calls": 10,
+  "tokens": 0,
+  "latency_s": 12.34
+}

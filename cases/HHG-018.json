@@ -1,0 +1,154 @@
+{
+  "case_id": "HHG-018",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.08,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "19 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-5558",
+          "CC-5441",
+          "CC-4942",
+          "CC-4721",
+          "CC-4436"
+        ]
+      },
+      {
+        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-0405"
+        ]
+      },
+      {
+        "claim": "The cardholder reported that they did not make the flagged purchase",
+        "source": "customer",
+        "ref": "case_pack:trigger_text",
+        "entity_ids": [
+          "3491361"
+        ]
+      },
+      {
+        "claim": "3 transactions across 2 channels in 48 hours carry device, region or match-flag anomalies",
+        "source": "graph",
+        "ref": "query:card_window(card_id, hours=48)",
+        "entity_ids": [
+          "3487573",
+          "3487659",
+          "3489428"
+        ]
+      },
+      {
+        "claim": "The same amount ($39.08 \u00b1 $0.15) and product code appear 128 times across 5 months on this card",
+        "source": "graph",
+        "ref": "query:recurring_charges(card_id, amount)",
+        "entity_ids": [
+          "3011938",
+          "3014915",
+          "3014994",
+          "3017596",
+          "3019529",
+          "3035437",
+          "3036834",
+          "3037587",
+          "3044272",
+          "3065995"
+        ]
+      },
+      {
+        "claim": "Cardholder recognises the charge once the earlier identical payments are read back to them, and confirms it is their own recurring payment",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": [
+          "3491361"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5558",
+      "CC-5441",
+      "CC-4942"
+    ],
+    "summary": "Customer C02354 disputed a $39.08 in-person purchase in billing region 126 on card C02354-K2. 19 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The cardholder reported that they did not make the flagged purchase. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.08, with 2,346.00 USD exposure; recommended actions are CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Cardholder recognises the charge once the earlier identical payments are read back to them, and confirms it is their own recurring payment"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R7 and 3a: customer disputes a charge; R6: shared origin across cards; 3a: customer disputes a charge"
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: monitor every card sharing the origin"
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: remind the cardholder of the recurring charge"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: uncertain with exposure over $500"
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "3a: customer disputes a charge"
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: remind the cardholder of their recurring charge"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      }
+    ],
+    "what_changed": "The assumed response (confirmed) probability moved from 0.62 to 0.08; the recommendation is now CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD; VERIFY_WITH_CUSTOMER, MONITOR_CONNECTED_CARDS, ESCALATE_TO_ANALYST no longer applies."
+  },
+  "sar": {
+    "file": false,
+    "reason": "R3: cardholder confirmed the transaction; no report",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: the cardholder's confirmation settles the question",
+  "tool_calls": 10,
+  "tokens": 0,
+  "latency_s": 38.78
+}

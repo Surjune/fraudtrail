@@ -195,3 +195,14 @@ CREATE OR REPLACE QUERY ring_components(DATETIME from_ts, DATETIME to_ts, INT ro
   PRINT @@members AS components, @@cards_on_device AS cards_on_device,
         min_ring_cards AS min_ring_cards;
 }
+
+# Earlier charges on one card close to an amount: the recurring-charge test behind R7.
+CREATE OR REPLACE QUERY recurring_charges(STRING card, DOUBLE amount, STRING product_cd,
+    DOUBLE tolerance, DATETIME before_ts) FOR GRAPH FraudTrail SYNTAX v2 {
+  Seed = {to_vertex(card, "Card")};
+  Matches = SELECT t FROM Seed:c -(MADE)- Transaction:t
+            WHERE t.ts < before_ts AND t.product_cd == product_cd
+              AND abs(t.amount - amount) <= tolerance
+            ORDER BY t.ts ASC;
+  PRINT Matches AS matches;
+}

@@ -1,0 +1,103 @@
+{
+  "case_id": "HHG-005",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.97,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3523199"
+    ],
+    "first_suspicious_txn_id": "3523199",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768"
+    ],
+    "exposure_usd": 100.07,
+    "evidence": [
+      {
+        "claim": "The identity record marks the device as New for this account (iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768)",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3523199"
+        ]
+      },
+      {
+        "claim": "3 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-2857",
+          "CC-2717",
+          "CC-2400"
+        ]
+      },
+      {
+        "claim": "Cardholder states they did not make these purchases and still has the card in their possession",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": [
+          "3523199"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2857",
+      "CC-2717",
+      "CC-2400",
+      "CC-5556",
+      "CC-5464"
+    ],
+    "summary": "The bank's model scored a $100.07 online purchase in billing region 330 on card C02923-K1 at 0.54. The identity record marks the device as New for this account (iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768). 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.97, with 100.07 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 11,
+      "assumed_response": "Cardholder states they did not make these purchases and still has the card in their possession"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "5: probability 0.75 is not decisive; ask the cardholder before acting"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "3a: evidence requested"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder denied the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder denied the transaction; 3a: case opened earlier in this investigation"
+      }
+    ],
+    "what_changed": "The assumed response (denied) probability moved from 0.75 to 0.97; the recommendation is now BLOCK_CARD, CREATE_CASE; VERIFY_WITH_CUSTOMER no longer applies."
+  },
+  "sar": {
+    "file": false,
+    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: the cardholder's denial settles the question",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 1.8
+}

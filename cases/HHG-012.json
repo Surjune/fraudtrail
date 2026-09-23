@@ -1,0 +1,100 @@
+{
+  "case_id": "HHG-012",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.09,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-2370"
+        ]
+      },
+      {
+        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-0003"
+        ]
+      },
+      {
+        "claim": "The same amount ($30.91 \u00b1 $0.15) and product code appear 22 times across 5 months on this card",
+        "source": "graph",
+        "ref": "query:recurring_charges(card_id, amount)",
+        "entity_ids": [
+          "3145212",
+          "3164686",
+          "3167671",
+          "3214695",
+          "3247155",
+          "3276082",
+          "3279252",
+          "3285313",
+          "3288386",
+          "3317497"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2370",
+      "CC-0003",
+      "CC-5537",
+      "CC-5504",
+      "CC-5492"
+    ],
+    "summary": "The bank's model scored a $30.91 in-person purchase in billing region 494 on card C05876-K2 at 0.55. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The same amount ($30.91 \u00b1 $0.15) and product code appear 22 times across 5 months on this card. Assessed as legitimate at 0.09, with 0.00 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "6: probability 0.09 on 2 independent pieces of evidence supports closing"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "6: probability 0.09 on 2 independent pieces of evidence supports closing"
+      }
+    ],
+    "final": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "6: probability 0.09 on 2 independent pieces of evidence supports closing"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "6: probability 0.09 on 2 independent pieces of evidence supports closing"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "R7: disputed charge matches the cardholder's own pattern",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: probability 0.09 on 2 independent pieces of evidence is decisive",
+  "tool_calls": 10,
+  "tokens": 0,
+  "latency_s": 5.38
+}

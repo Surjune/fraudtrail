@@ -256,7 +256,7 @@ def _verification_reason(s: Situation, request: Action) -> str:
 def _apply_response(plan: _Plan, s: Situation) -> None:
     if s.verification is Verification.CONFIRMED:
         _close_legitimate(plan, s, "R3: cardholder confirmed the transaction")
-        if s.recurring_charge_match:
+        if s.recurring_charge_match and s.disputed:
             plan.add(Action.WARN_CUSTOMER, "R7: remind the cardholder of their recurring charge")
     elif s.verification is Verification.DENIED:
         _block(plan, s, "R2: cardholder denied the transaction")

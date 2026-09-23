@@ -1,0 +1,111 @@
+{
+  "case_id": "HHG-019",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.11,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate",
+        "source": "graph",
+        "ref": "attribute:Transaction.risk_score",
+        "entity_ids": [
+          "3503878"
+        ]
+      },
+      {
+        "claim": "The identity record marks the device as New for this account (Windows | other | chrome 61.0 | 1280x720)",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3503878"
+        ]
+      },
+      {
+        "claim": "3 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-5026",
+          "CC-2860",
+          "CC-2011"
+        ]
+      },
+      {
+        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-2087"
+        ]
+      },
+      {
+        "claim": "The same amount ($99.92 \u00b1 $0.15) and product code appear 4 times across 3 months on this card",
+        "source": "graph",
+        "ref": "query:recurring_charges(card_id, amount)",
+        "entity_ids": [
+          "3064986",
+          "3108054",
+          "3344081",
+          "3419333"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5026",
+      "CC-2860",
+      "CC-2011",
+      "CC-2554"
+    ],
+    "summary": "The bank's model scored a $99.92 online purchase in billing region 264 on card C07987-K2 at 0.90. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | other | chrome 61.0 | 1280x720). 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use. Assessed as legitimate at 0.11, with 99.92 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "6: probability 0.11 on 3 independent pieces of evidence supports closing"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "6: probability 0.11 on 3 independent pieces of evidence supports closing"
+      }
+    ],
+    "final": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "6: probability 0.11 on 3 independent pieces of evidence supports closing"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "6: probability 0.11 on 3 independent pieces of evidence supports closing"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "R7: disputed charge matches the cardholder's own pattern",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: probability 0.11 on 3 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 7.72
+}

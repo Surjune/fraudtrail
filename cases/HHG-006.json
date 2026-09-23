@@ -1,0 +1,139 @@
+{
+  "case_id": "HHG-006",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.97,
+    "pattern": "undocumented",
+    "pattern_description": "Several online purchases on one card inside an hour, each sitting just below a $500 authorization limit and together far above it. The amounts look chosen to clear individually rather than to match anything the cardholder usually buys.",
+    "affected_txn_ids": [
+      "3476602",
+      "3476633",
+      "3476665",
+      "3476682"
+    ],
+    "first_suspicious_txn_id": "3476602",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080"
+    ],
+    "exposure_usd": 1906.07,
+    "evidence": [
+      {
+        "claim": "The identity record marks the device as New for this account (Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080)",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "$482.12 is 2.7 standard deviations above this card's usual $116.73",
+        "source": "graph",
+        "ref": "query:card_baseline(card_id)",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "This device profile has been used on the card before",
+        "source": "graph",
+        "ref": "query:card_baseline(card_id)",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "The cardholder reported that they did not make the flagged purchase",
+        "source": "customer",
+        "ref": "case_pack:trigger_text",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "4 online purchases within an hour, each between $440 and $500, totalling $1,906.07",
+        "source": "graph",
+        "ref": "query:card_window(card_id, hours=2)",
+        "entity_ids": [
+          "3476602",
+          "3476633",
+          "3476665",
+          "3476682"
+        ]
+      },
+      {
+        "claim": "4 online transactions within 48 hours do not fit the card's history",
+        "source": "graph",
+        "ref": "query:card_window(card_id, hours=48)",
+        "entity_ids": [
+          "3476602",
+          "3476633",
+          "3476665",
+          "3476682"
+        ]
+      }
+    ],
+    "similar_prior_cases": [],
+    "summary": "Customer C07297 disputed a $482.12 online purchase in billing region 264 on card C07297-K1. The identity record marks the device as New for this account (Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080). $482.12 is 2.7 standard deviations above this card's usual $116.73. This device profile has been used on the card before. Assessed as fraud at 0.97, with 1,906.07 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder reported they did not make the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder reported they did not make the transaction; 3a: customer disputes a charge; 3a: a report always has a case behind it"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "3a: the pattern is undocumented"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder reported they did not make the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder reported they did not make the transaction; 3a: customer disputes a charge; 3a: a report always has a case behind it"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "3a: the pattern is undocumented"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": true,
+    "reason": "3a: the pattern is undocumented",
+    "narrative": "Between 2016-11-21 and 2016-11-21, card C07297-K1 belonging to customer C07297 was used for 4 transaction(s) totalling $1,906.07 that the bank believes were unauthorised. The activity ran through online channel(s) under product code(s) C, in billing region(s) 264, 476. The identity record marks the device as New for this account (Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080). $482.12 is 2.7 standard deviations above this card's usual $116.73. This device profile has been used on the card before. The cardholder reported that they did not make the flagged purchase. Several online purchases on one card inside an hour, each sitting just below a $500 authorization limit and together far above it. The amounts look chosen to clear individually rather than to match anything the cardholder usually buys. The total suspicious amount is $1,906.07, and the recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
+    "subjects": [
+      "C07297",
+      "C07297-K1",
+      "Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080"
+    ],
+    "total_amount_usd": 1906.07,
+    "activity_dates": [
+      "2016-11-21",
+      "2016-11-21"
+    ]
+  },
+  "stop_reason": "6: probability 0.97 on 4 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 3.63
+}

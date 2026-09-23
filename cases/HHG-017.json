@@ -1,0 +1,116 @@
+{
+  "case_id": "HHG-017",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.13,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "The connection used a proxy (IP_PROXY:HIDDEN)",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3450629"
+        ]
+      },
+      {
+        "claim": "This device profile has been used on the card before",
+        "source": "graph",
+        "ref": "query:card_baseline(card_id)",
+        "entity_ids": [
+          "3450629"
+        ]
+      },
+      {
+        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-1383"
+        ]
+      },
+      {
+        "claim": "3 online transactions within 48 hours do not fit the card's history",
+        "source": "graph",
+        "ref": "query:card_window(card_id, hours=48)",
+        "entity_ids": [
+          "3450436",
+          "3450503",
+          "3450629"
+        ]
+      },
+      {
+        "claim": "The same amount ($100.09 \u00b1 $0.15) and product code appear 8 times across 3 months on this card",
+        "source": "graph",
+        "ref": "query:recurring_charges(card_id, amount)",
+        "entity_ids": [
+          "3063185",
+          "3077293",
+          "3116058",
+          "3117007",
+          "3118964",
+          "3135192",
+          "3450436",
+          "3450503"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-1383",
+      "CC-5234",
+      "CC-5008",
+      "CC-4783",
+      "CC-4734"
+    ],
+    "summary": "The bank's model scored a $100.09 online purchase in billing region 204 on card C04570-K1 at 0.57. The connection used a proxy (IP_PROXY:HIDDEN). This device profile has been used on the card before. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. Assessed as legitimate at 0.13, with 0.00 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "6: probability 0.13 on 4 independent pieces of evidence supports closing"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "6: probability 0.13 on 4 independent pieces of evidence supports closing"
+      }
+    ],
+    "final": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "6: probability 0.13 on 4 independent pieces of evidence supports closing"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "6: probability 0.13 on 4 independent pieces of evidence supports closing"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "R7: disputed charge matches the cardholder's own pattern",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: probability 0.13 on 4 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 5.52
+}

@@ -1,0 +1,106 @@
+{
+  "case_id": "HHG-007",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.05,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "The bank's model scored the flagged transaction at 0.87; above 0.70 most flagged transactions in this book turn out legitimate",
+        "source": "graph",
+        "ref": "attribute:Transaction.risk_score",
+        "entity_ids": [
+          "3514948"
+        ]
+      },
+      {
+        "claim": "18 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-5521",
+          "CC-5092",
+          "CC-4787",
+          "CC-4597",
+          "CC-4455"
+        ]
+      },
+      {
+        "claim": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows no episode behind the alert",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": [
+          "3514948"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5521",
+      "CC-5092",
+      "CC-4787",
+      "CC-5227",
+      "CC-4898"
+    ],
+    "summary": "The bank's model scored a $111.92 in-person purchase in billing region 264 on card C09933-K2 at 0.87. The bank's model scored the flagged transaction at 0.87; above 0.70 most flagged transactions in this book turn out legitimate. 18 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.05, with 0.00 USD exposure; recommended actions are CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows no episode behind the alert"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.52 rests on a single signal; verify before any block"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "3a: evidence requested"
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "3a: case opened earlier in this investigation"
+      },
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      }
+    ],
+    "what_changed": "The assumed response (confirmed) probability moved from 0.52 to 0.05; the recommendation is now CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD; VERIFY_WITH_CUSTOMER no longer applies."
+  },
+  "sar": {
+    "file": false,
+    "reason": "R3: cardholder confirmed the transaction; no report",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: the cardholder's confirmation settles the question",
+  "tool_calls": 10,
+  "tokens": 0,
+  "latency_s": 12.16
+}

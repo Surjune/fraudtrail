@@ -1,0 +1,115 @@
+{
+  "case_id": "HHG-011",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3583368"
+    ],
+    "first_suspicious_txn_id": "3583368",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "SM-G610F Build/NRD90M |  | chrome 66.0 for android | "
+    ],
+    "exposure_usd": 131.3,
+    "evidence": [
+      {
+        "claim": "The identity record marks the device as New for this account (SM-G610F Build/NRD90M |  | chrome 66.0 for android | )",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3583368"
+        ]
+      },
+      {
+        "claim": "$131.30 is 2.6 standard deviations above this card's usual $39.42",
+        "source": "graph",
+        "ref": "query:card_baseline(card_id)",
+        "entity_ids": [
+          "3583368"
+        ]
+      },
+      {
+        "claim": "10 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present new device",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-4501",
+          "CC-3905",
+          "CC-3206",
+          "CC-3039",
+          "CC-2799"
+        ]
+      },
+      {
+        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed a purchase from a new phone",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-4743"
+        ]
+      },
+      {
+        "claim": "The cardholder reported that they did not make the flagged purchase",
+        "source": "customer",
+        "ref": "case_pack:trigger_text",
+        "entity_ids": [
+          "3583368"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4501",
+      "CC-3905",
+      "CC-3206",
+      "CC-5527",
+      "CC-5378"
+    ],
+    "summary": "Customer C11923 disputed a $131.30 online purchase online on card C11923-K2. The identity record marks the device as New for this account (SM-G610F Build/NRD90M |  | chrome 66.0 for android | ). $131.30 is 2.6 standard deviations above this card's usual $39.42. 10 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present new device. Assessed as fraud at 0.95, with 131.30 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder reported they did not make the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder reported they did not make the transaction; 3a: customer disputes a charge"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder reported they did not make the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: cardholder reported they did not make the transaction; 3a: customer disputes a charge"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: probability 0.95 on 4 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 216.43
+}

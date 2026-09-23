@@ -1,0 +1,105 @@
+{
+  "case_id": "HHG-013",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.85,
+    "pattern": "account_takeover",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3522133",
+      "3526826"
+    ],
+    "first_suspicious_txn_id": "3522133",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows |  | chrome 66.0 | "
+    ],
+    "exposure_usd": 699.62,
+    "evidence": [
+      {
+        "claim": "The bank's model scored the flagged transaction at 0.76; above 0.70 most flagged transactions in this book turn out legitimate",
+        "source": "graph",
+        "ref": "attribute:Transaction.risk_score",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "The identity record marks the device as New for this account (Windows |  | chrome 66.0 | )",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "3 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover",
+        "source": "graph",
+        "ref": "query:prior_cases(card_id)",
+        "entity_ids": [
+          "CC-4294",
+          "CC-3216",
+          "CC-1475"
+        ]
+      },
+      {
+        "claim": "2 transactions across 2 channels in 48 hours carry device, region or match-flag anomalies",
+        "source": "graph",
+        "ref": "query:card_window(card_id, hours=48)",
+        "entity_ids": [
+          "3522133",
+          "3526826"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4294",
+      "CC-3216",
+      "CC-1475"
+    ],
+    "summary": "The bank's model scored a $35.66 online purchase online on card C07671-K2 at 0.76. The bank's model scored the flagged transaction at 0.76; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows |  | chrome 66.0 | ). 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. Assessed as fraud at 0.85, with 699.62 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "6: probability 0.85 on 3 independent pieces of evidence"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "6: probability 0.85 on 3 independent pieces of evidence; 3a: fraud probability 0.85 reaches 0.30"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "6: probability 0.85 on 3 independent pieces of evidence"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "6: probability 0.85 on 3 independent pieces of evidence; 3a: fraud probability 0.85 reaches 0.30"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: probability 0.85 on 3 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 4.57
+}

@@ -1,0 +1,187 @@
+{
+  "case_id": "HHG-014",
+  "case": {
+    "status": "escalated",
+    "verdict": "fraud",
+    "fraud_probability": 0.96,
+    "pattern": "undocumented",
+    "pattern_description": "One device profile is being used across many unrelated cards in the same weeks, always marked new for each account and usually behind an anonymous proxy. The purchases are ordinary in size, which keeps the bank's model quiet, and the link between the cardholders is the device rather than anything about the cards.",
+    "affected_txn_ids": [
+      "3460634",
+      "3478561"
+    ],
+    "first_suspicious_txn_id": "3460634",
+    "connected_card_ids": [
+      "C10326-K1",
+      "C08168-K1",
+      "C01996-K2",
+      "C09975-K1",
+      "C02975-K1",
+      "C01289-K1",
+      "C04108-K2",
+      "C10193-K2",
+      "C11670-K2",
+      "C02910-K1",
+      "C12796-K1",
+      "C04274-K1",
+      "C09906-K1",
+      "C09049-K1",
+      "C13291-K1",
+      "C06710-K1",
+      "C11082-K1",
+      "C03676-K2",
+      "C05448-K2"
+    ],
+    "connected_device_profiles": [
+      "SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080"
+    ],
+    "exposure_usd": 187.33,
+    "evidence": [
+      {
+        "claim": "The identity record marks the device as New for this account (SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080)",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "The connection used a proxy (IP_PROXY:ANONYMOUS)",
+        "source": "graph",
+        "ref": "query:case_context(flagged_txn)",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "This device profile has been used on the card before",
+        "source": "graph",
+        "ref": "query:card_baseline(card_id)",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "A fraud analyst asked for this card to be reviewed alongside related activity",
+        "source": "external",
+        "ref": "case_pack:trigger_text",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "Device profile SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080 was used on 20 different cards in the surrounding weeks",
+        "source": "graph",
+        "ref": "query:device_reach(profile_id)",
+        "entity_ids": [
+          "C10326-K1",
+          "C13487-K1",
+          "C08168-K1",
+          "C01996-K2",
+          "C09975-K1",
+          "C02975-K1",
+          "C01289-K1",
+          "C04108-K2",
+          "C10193-K2",
+          "C11670-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-3035",
+      "CC-2985",
+      "CC-2971",
+      "CC-2649"
+    ],
+    "summary": "An analyst asked for a review of a $74.96 online purchase in billing region 191 on card C13487-K1. The identity record marks the device as New for this account (SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080). The connection used a proxy (IP_PROXY:ANONYMOUS). This device profile has been used on the card before. Assessed as fraud at 0.96, with 187.33 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT, MONITOR_CONNECTED_CARDS, ESCALATE_TO_ANALYST.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "6: probability 0.96 on 3 independent pieces of evidence"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "6: probability 0.96 on 3 independent pieces of evidence; R6: shared origin across cards; R9: coordinated activity fitting no known pattern; 3a: fraud probability 0.96 reaches 0.30; 3a: a report always has a case behind it"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "R6: fraud across several cards shares an origin; R9: coordinated abuse fitting no known pattern"
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: monitor every card sharing the origin; 19 connected card(s) share the compromise"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R9: coordinated activity fitting no known pattern"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "6: probability 0.96 on 3 independent pieces of evidence"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "6: probability 0.96 on 3 independent pieces of evidence; R6: shared origin across cards; R9: coordinated activity fitting no known pattern; 3a: fraud probability 0.96 reaches 0.30; 3a: a report always has a case behind it"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "R6: fraud across several cards shares an origin; R9: coordinated abuse fitting no known pattern"
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: monitor every card sharing the origin; 19 connected card(s) share the compromise"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R9: coordinated activity fitting no known pattern"
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": true,
+    "reason": "R6: fraud across several cards shares an origin; R9: coordinated abuse fitting no known pattern",
+    "narrative": "Between 2016-11-15 and 2016-11-22, card C13487-K1 belonging to customer C13487 was used for 2 transaction(s) totalling $187.33 that the bank believes were unauthorised. The activity ran through online channel(s) under product code(s) C, in billing region(s) 191. The identity record marks the device as New for this account (SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080). The connection used a proxy (IP_PROXY:ANONYMOUS). This device profile has been used on the card before. A fraud analyst asked for this card to be reviewed alongside related activity. One device profile is being used across many unrelated cards in the same weeks, always marked new for each account and usually behind an anonymous proxy. The purchases are ordinary in size, which keeps the bank's model quiet, and the link between the cardholders is the device rather than anything about the cards. The same device profile links this activity to 19 other card(s), which indicates one actor operating across several cardholders. The total suspicious amount is $187.33, and the recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT, MONITOR_CONNECTED_CARDS, ESCALATE_TO_ANALYST.",
+    "subjects": [
+      "C13487",
+      "C13487-K1",
+      "C10326-K1",
+      "C08168-K1",
+      "C01996-K2",
+      "C09975-K1",
+      "C02975-K1",
+      "C01289-K1",
+      "C04108-K2",
+      "C10193-K2",
+      "C11670-K2",
+      "C02910-K1",
+      "SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080"
+    ],
+    "total_amount_usd": 187.33,
+    "activity_dates": [
+      "2016-11-15",
+      "2016-11-22"
+    ]
+  },
+  "stop_reason": "6: probability 0.96 on 3 independent pieces of evidence is decisive",
+  "tool_calls": 11,
+  "tokens": 0,
+  "latency_s": 2.27
+}

@@ -1,0 +1,115 @@
+{
+  "case_id": "HHG-009",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.03,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "The cardholder reported that they did not make the flagged purchase",
+        "source": "customer",
+        "ref": "case_pack:trigger_text",
+        "entity_ids": [
+          "3581141"
+        ]
+      },
+      {
+        "claim": "The same amount ($30.02 \u00b1 $0.15) and product code appear 4 times across 3 months on this card",
+        "source": "graph",
+        "ref": "query:recurring_charges(card_id, amount)",
+        "entity_ids": [
+          "3034459",
+          "3342487",
+          "3381749",
+          "3545489"
+        ]
+      },
+      {
+        "claim": "Cardholder recognises the charge once the earlier identical payments are read back to them, and confirms it is their own recurring payment",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": [
+          "3581141"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5187",
+      "CC-4940",
+      "CC-4501",
+      "CC-4225",
+      "CC-4058"
+    ],
+    "summary": "Customer C08299 disputed a $30.02 online purchase in billing region 203 on card C08299-K1. The cardholder reported that they did not make the flagged purchase. The same amount ($30.02 \u00b1 $0.15) and product code appear 4 times across 3 months on this card. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.03, with 0.00 USD exposure; recommended actions are CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Cardholder recognises the charge once the earlier identical payments are read back to them, and confirms it is their own recurring payment"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R7 and 3a: customer disputes a charge; 3a: customer disputes a charge"
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: remind the cardholder of the recurring charge"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: evidence conflicts"
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "3a: customer disputes a charge"
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: remind the cardholder of their recurring charge"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      }
+    ],
+    "what_changed": "The assumed response (confirmed) probability moved from 0.40 to 0.03; the recommendation is now CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD; VERIFY_WITH_CUSTOMER, ESCALATE_TO_ANALYST no longer applies."
+  },
+  "sar": {
+    "file": false,
+    "reason": "R3: cardholder confirmed the transaction; no report",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "6: the cardholder's confirmation settles the question",
+  "tool_calls": 10,
+  "tokens": 0,
+  "latency_s": 15.74
+}
