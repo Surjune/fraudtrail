@@ -20,6 +20,18 @@ class GraphError(RuntimeError):
     """A TigerGraph call failed or returned something unusable."""
 
 
+# GSQL answers with HTTP 200 whatever happens, so failure is read from the text. A query
+# that does not compile is saved as a draft, which installs nothing and would otherwise
+# look like success until the query is called.
+FAILURE_MARKERS = (
+    "semantic check fails",
+    "failed to create",
+    "saved as draft query",
+    "syntax error",
+    "installation failed",
+)
+
+
 class GraphClient:
     def __init__(self, settings: TigerGraphSettings) -> None:
         settings.require()
@@ -36,21 +48,26 @@ class GraphClient:
             import pyTigerGraph as tg
         except ImportError as exc:  # pragma: no cover - dependency is declared
             raise GraphError("pyTigerGraph is not installed") from exc
+        # A GSQL secret authenticates on its own; pyTigerGraph signs GSQL calls with it
+        # directly. REST++ still wants a bearer token, which getToken() mints from the
+        # same secret once the connection can talk to the server.
         conn = tg.TigerGraphConnection(
             host=s.host,
             graphname=s.graph,
+            gsqlSecret=s.secret,
             username=s.username or "tigergraph",
             password=s.password,
             restppPort=s.restpp_port,
             gsPort=s.gs_port,
+            tgCloud=s.is_cloud,
         )
         try:
-            if s.secret:
-                conn.getToken(s.secret)
-            else:
-                conn.getToken()
+            conn.getToken(s.secret) if s.secret else conn.getToken()
         except Exception as exc:
-            raise GraphError(f"could not authenticate to {s.host}: {exc}") from exc
+            if not s.secret:
+                raise GraphError(f"could not authenticate to {s.host}: {exc}") from exc
+            # The secret alone is enough for GSQL; a REST++ token is minted per call.
+            log.debug("token request declined, continuing with secret auth: %s", exc)
         return conn
 
     @property
@@ -65,7 +82,7 @@ class GraphClient:
             raise GraphError(f"GSQL failed: {exc}") from exc
         text = result if isinstance(result, str) else str(result)
         lowered = text.lower()
-        if "semantic check fails" in lowered or "failed to create" in lowered:
+        if any(marker in lowered for marker in FAILURE_MARKERS):
             raise GraphError(f"GSQL reported an error:\n{text}")
         return text
 

@@ -10,8 +10,8 @@
 USE GRAPH FraudTrail
 
 # The flagged transaction with its card, owner, the owner's other cards and its device.
-CREATE OR REPLACE QUERY case_context(STRING flagged_txn) FOR GRAPH FraudTrail SYNTAX v2 {
-  Seed = {to_vertex(flagged_txn, "Transaction")};
+CREATE OR REPLACE QUERY case_context(VERTEX<Transaction> flagged_txn) FOR GRAPH FraudTrail SYNTAX v2 {
+  Seed = {flagged_txn};
   Cards = SELECT c FROM Seed:t -(MADE)- Card:c;
   Owners = SELECT cu FROM Cards:c -(OWNS)- Customer:cu;
   Siblings = SELECT c2 FROM Owners:cu -(OWNS)- Card:c2;
@@ -22,11 +22,11 @@ CREATE OR REPLACE QUERY case_context(STRING flagged_txn) FOR GRAPH FraudTrail SY
 }
 
 # Every transaction on one card inside a time window, with the device profile of each.
-CREATE OR REPLACE QUERY card_window(STRING card, DATETIME from_ts, DATETIME to_ts,
+CREATE OR REPLACE QUERY card_window(VERTEX<Card> card, DATETIME from_ts, DATETIME to_ts,
     INT max_txns = 500) FOR GRAPH FraudTrail SYNTAX v2 {
   MapAccum<STRING, STRING> @@device_of;
   MapAccum<STRING, STRING> @@region_of;
-  Seed = {to_vertex(card, "Card")};
+  Seed = {card};
   Txns = SELECT t FROM Seed:c -(MADE)- Transaction:t
          WHERE t.ts >= from_ts AND t.ts <= to_ts
          ORDER BY t.ts DESC
@@ -40,7 +40,7 @@ CREATE OR REPLACE QUERY card_window(STRING card, DATETIME from_ts, DATETIME to_t
 
 # What normal looks like on this card before a point in time: volumes, amounts, and the
 # regions, products, channels and devices it has used.
-CREATE OR REPLACE QUERY card_baseline(STRING card, DATETIME before_ts)
+CREATE OR REPLACE QUERY card_baseline(VERTEX<Card> card, DATETIME before_ts)
     FOR GRAPH FraudTrail SYNTAX v2 {
   SumAccum<INT> @@n_txns, @@n_online;
   SumAccum<DOUBLE> @@sum_amount, @@sum_amount_sq;
@@ -49,7 +49,7 @@ CREATE OR REPLACE QUERY card_baseline(STRING card, DATETIME before_ts)
   MaxAccum<DATETIME> @@last_ts;
   MapAccum<STRING, SumAccum<INT>> @@regions, @@products, @@profiles, @@emails;
 
-  Seed = {to_vertex(card, "Card")};
+  Seed = {card};
   Txns = SELECT t FROM Seed:c -(MADE)- Transaction:t WHERE t.ts < before_ts
          ACCUM @@n_txns += 1,
                @@sum_amount += t.amount,
@@ -73,13 +73,13 @@ CREATE OR REPLACE QUERY card_baseline(STRING card, DATETIME before_ts)
 
 # Which other cards used one device profile in a window, and whether the bank already
 # confirmed fraud on any of them. This is what turns one alert into a ring.
-CREATE OR REPLACE QUERY device_reach(STRING profile, DATETIME from_ts, DATETIME to_ts)
+CREATE OR REPLACE QUERY device_reach(VERTEX<DeviceProfile> profile, DATETIME from_ts, DATETIME to_ts)
     FOR GRAPH FraudTrail SYNTAX v2 {
   SetAccum<STRING> @@cards, @@customers, @@txns, @@prior_cases;
   MinAccum<DATETIME> @@first_ts;
   MaxAccum<DATETIME> @@last_ts;
 
-  Seed = {to_vertex(profile, "DeviceProfile")};
+  Seed = {profile};
   Txns = SELECT t FROM Seed:d -(FROM_DEVICE)- Transaction:t
          WHERE t.ts >= from_ts AND t.ts <= to_ts
          ACCUM @@txns += t.txn_id, @@first_ts += t.ts, @@last_ts += t.ts;
@@ -95,13 +95,13 @@ CREATE OR REPLACE QUERY device_reach(STRING profile, DATETIME from_ts, DATETIME 
 
 # Where this card has been used and when, one row per billing region. Out-of-region use
 # is a trip when home activity pauses and a clone when it does not.
-CREATE OR REPLACE QUERY region_timeline(STRING card, DATETIME before_ts)
+CREATE OR REPLACE QUERY region_timeline(VERTEX<Card> card, DATETIME before_ts)
     FOR GRAPH FraudTrail SYNTAX v2 {
   MapAccum<STRING, SumAccum<INT>> @@counts;
   MapAccum<STRING, MinAccum<DATETIME>> @@first_seen;
   MapAccum<STRING, MaxAccum<DATETIME>> @@last_seen;
 
-  Seed = {to_vertex(card, "Card")};
+  Seed = {card};
   Txns = SELECT t FROM Seed:c -(MADE)- Transaction:t
          WHERE t.ts < before_ts AND t.region != ""
          ACCUM @@counts += (t.region -> 1),
@@ -112,9 +112,9 @@ CREATE OR REPLACE QUERY region_timeline(STRING card, DATETIME before_ts)
 
 # The bank's closed cases that touch this card: on the card itself, on the customer's
 # other cards, or naming it as a connected card. This is the agent's case memory.
-CREATE OR REPLACE QUERY prior_cases(STRING card, DATETIME before_ts, INT max_cases = 50)
+CREATE OR REPLACE QUERY prior_cases(VERTEX<Card> card, DATETIME before_ts, INT max_cases = 50)
     FOR GRAPH FraudTrail SYNTAX v2 {
-  Seed = {to_vertex(card, "Card")};
+  Seed = {card};
   SameCard = SELECT cc FROM Seed:c -(ON_CARD)- ClosedCase:cc
              WHERE cc.opened_at < before_ts
              ORDER BY cc.opened_at DESC LIMIT max_cases;
@@ -122,7 +122,7 @@ CREATE OR REPLACE QUERY prior_cases(STRING card, DATETIME before_ts, INT max_cas
               WHERE cc.opened_at < before_ts
               ORDER BY cc.opened_at DESC LIMIT max_cases;
   Owners = SELECT cu FROM Seed:c -(OWNS)- Customer:cu;
-  Siblings = SELECT c2 FROM Owners:cu -(OWNS)- Card:c2 WHERE c2.card_id != card;
+  Siblings = SELECT c2 FROM Owners:cu -(OWNS)- Card:c2 WHERE c2 != card;
   SiblingCases = SELECT cc FROM Siblings:c2 -(ON_CARD)- ClosedCase:cc
                  WHERE cc.opened_at < before_ts
                  ORDER BY cc.opened_at DESC LIMIT max_cases;
@@ -131,12 +131,12 @@ CREATE OR REPLACE QUERY prior_cases(STRING card, DATETIME before_ts, INT max_cas
 
 # Cards that share this card's device profiles or recipient email domains in a window,
 # with how many cards each shared element reaches.
-CREATE OR REPLACE QUERY shared_origin(STRING card, DATETIME from_ts, DATETIME to_ts,
+CREATE OR REPLACE QUERY shared_origin(VERTEX<Card> card, DATETIME from_ts, DATETIME to_ts,
     INT min_cards = 3) FOR GRAPH FraudTrail SYNTAX v2 {
   MapAccum<STRING, SetAccum<STRING>> @@cards_by_element;
   SetAccum<STRING> @@elements;
 
-  Seed = {to_vertex(card, "Card")};
+  Seed = {card};
   MyTxns = SELECT t FROM Seed:c -(MADE)- Transaction:t
            WHERE t.ts >= from_ts AND t.ts <= to_ts;
   MyDevices = SELECT d FROM MyTxns:t -(FROM_DEVICE)- DeviceProfile:d
@@ -197,9 +197,9 @@ CREATE OR REPLACE QUERY ring_components(DATETIME from_ts, DATETIME to_ts, INT ro
 }
 
 # Earlier charges on one card close to an amount: the recurring-charge test behind R7.
-CREATE OR REPLACE QUERY recurring_charges(STRING card, DOUBLE amount, STRING product_cd,
+CREATE OR REPLACE QUERY recurring_charges(VERTEX<Card> card, DOUBLE amount, STRING product_cd,
     DOUBLE tolerance, DATETIME before_ts) FOR GRAPH FraudTrail SYNTAX v2 {
-  Seed = {to_vertex(card, "Card")};
+  Seed = {card};
   Matches = SELECT t FROM Seed:c -(MADE)- Transaction:t
             WHERE t.ts < before_ts AND t.product_cd == product_cd
               AND abs(t.amount - amount) <= tolerance

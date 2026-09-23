@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 
 from fraudtrail.config import load_settings
-from fraudtrail.graph.client import GraphClient
+from fraudtrail.graph.client import GraphClient, GraphError
 
 log = logging.getLogger("install_queries")
 
@@ -32,7 +32,14 @@ def main() -> None:
         client.run_file(REPO / "graph" / name)
     if not args.no_install:
         log.info("installing queries (this takes a few minutes)")
-        client.gsql(f"USE GRAPH {settings.tigergraph.graph}\nINSTALL QUERY ALL")
+        install = f"""USE GRAPH {settings.tigergraph.graph}
+INSTALL QUERY ALL"""
+        try:
+            client.gsql(install)
+        except GraphError as exc:
+            # Nothing to install is not a failure: re-running the script stays safe.
+            if "installed already" not in str(exc):
+                raise
     log.info("done")
 
 

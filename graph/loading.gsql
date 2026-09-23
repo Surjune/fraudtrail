@@ -1,6 +1,12 @@
 # Loading job for the files written by scripts/export_graph.py.
 # Each DEFINE FILENAME is a tag; the loader posts one CSV at a time against its tag, so
 # transaction-derived files can be uploaded month by month.
+#
+# The files arrive over REST rather than sitting on the server, so GSQL cannot read their
+# header line when it compiles the job. Every tag therefore declares its columns with
+# DEFINE HEADER and names them with USER_DEFINED_HEADER; the column lists below match the
+# header row scripts/export_graph.py writes. Each LOAD then drops that header row
+# itself, because HEADER="true" does not skip it once the columns are user-defined.
 
 USE GRAPH FraudTrail
 
@@ -25,66 +31,129 @@ CREATE LOADING JOB load_fraudtrail FOR GRAPH FraudTrail {
   DEFINE FILENAME f_connected_to;
   DEFINE FILENAME f_case_pattern;
 
+  DEFINE HEADER h_customer = "customer_id";
+  DEFINE HEADER h_card = "card_id", "customer_id", "network", "card_type", "first_seen",
+      "last_seen", "txn_count";
+  DEFINE HEADER h_transaction = "txn_id", "ts", "amount", "product_cd", "channel",
+      "risk_score", "region", "country", "dist1", "dist2", "device_status", "proxy",
+      "m_flags";
+  DEFINE HEADER h_device_profile = "profile_id", "device_info", "os", "browser", "screen",
+      "device_type";
+  DEFINE HEADER h_email_domain = "domain";
+  DEFINE HEADER h_billing_region = "region";
+  DEFINE HEADER h_pattern = "name", "description", "documented";
+  DEFINE HEADER h_closed_case = "case_id", "outcome", "pattern", "opened_at", "closed_at",
+      "exposure_usd", "n_txns", "actions_taken", "report_filed", "analyst_notes";
+  DEFINE HEADER h_owns = "customer_id", "card_id";
+  DEFINE HEADER h_made = "card_id", "txn_id";
+  DEFINE HEADER h_from_device = "txn_id", "profile_id";
+  DEFINE HEADER h_purchaser_email = "txn_id", "domain";
+  DEFINE HEADER h_recipient_email = "txn_id", "domain";
+  DEFINE HEADER h_billed_in = "txn_id", "region";
+  DEFINE HEADER h_next = "txn_id", "next_txn_id", "gap_minutes";
+  DEFINE HEADER h_involves = "case_id", "txn_id";
+  DEFINE HEADER h_on_card = "case_id", "card_id";
+  DEFINE HEADER h_connected_to = "case_id", "card_id";
+  DEFINE HEADER h_case_pattern = "case_id", "pattern";
+
   LOAD f_customer TO VERTEX Customer VALUES($"customer_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"customer_id" != "customer_id"
+    USING USER_DEFINED_HEADER="h_customer", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_card TO VERTEX Card VALUES($"card_id", $"customer_id", $"network", $"card_type",
       $"first_seen", $"last_seen", $"txn_count", _)
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"card_id" != "card_id"
+    USING USER_DEFINED_HEADER="h_card", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_transaction TO VERTEX Transaction VALUES($"txn_id", $"ts", $"amount", $"product_cd",
       $"channel", $"risk_score", $"region", $"country", $"dist1", $"dist2", $"device_status",
       $"proxy", $"m_flags")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"txn_id" != "txn_id"
+    USING USER_DEFINED_HEADER="h_transaction", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_device_profile TO VERTEX DeviceProfile VALUES($"profile_id", $"device_info", $"os",
       $"browser", $"screen", $"device_type")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"profile_id" != "profile_id"
+    USING USER_DEFINED_HEADER="h_device_profile", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_email_domain TO VERTEX EmailDomain VALUES($"domain")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"domain" != "domain"
+    USING USER_DEFINED_HEADER="h_email_domain", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_billing_region TO VERTEX BillingRegion VALUES($"region")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"region" != "region"
+    USING USER_DEFINED_HEADER="h_billing_region", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_pattern TO VERTEX Pattern VALUES($"name", $"description", $"documented")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"name" != "name"
+    USING USER_DEFINED_HEADER="h_pattern", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_closed_case TO VERTEX ClosedCase VALUES($"case_id", $"outcome", $"pattern",
       $"opened_at", $"closed_at", $"exposure_usd", $"n_txns", $"actions_taken",
       $"report_filed", $"analyst_notes")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"case_id" != "case_id"
+    USING USER_DEFINED_HEADER="h_closed_case", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_owns TO EDGE OWNS VALUES($"customer_id", $"card_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"customer_id" != "customer_id"
+    USING USER_DEFINED_HEADER="h_owns", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_made TO EDGE MADE VALUES($"card_id", $"txn_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"card_id" != "card_id"
+    USING USER_DEFINED_HEADER="h_made", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_from_device TO EDGE FROM_DEVICE VALUES($"txn_id", $"profile_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"txn_id" != "txn_id"
+    USING USER_DEFINED_HEADER="h_from_device", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_purchaser_email TO EDGE PURCHASER_EMAIL VALUES($"txn_id", $"domain")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"txn_id" != "txn_id"
+    USING USER_DEFINED_HEADER="h_purchaser_email", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_recipient_email TO EDGE RECIPIENT_EMAIL VALUES($"txn_id", $"domain")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"txn_id" != "txn_id"
+    USING USER_DEFINED_HEADER="h_recipient_email", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_billed_in TO EDGE BILLED_IN VALUES($"txn_id", $"region")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"txn_id" != "txn_id"
+    USING USER_DEFINED_HEADER="h_billed_in", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_next TO EDGE NEXT VALUES($"txn_id", $"next_txn_id", $"gap_minutes")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"txn_id" != "txn_id"
+    USING USER_DEFINED_HEADER="h_next", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_involves TO EDGE INVOLVES VALUES($"case_id", $"txn_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"case_id" != "case_id"
+    USING USER_DEFINED_HEADER="h_involves", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_on_card TO EDGE ON_CARD VALUES($"case_id", $"card_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"case_id" != "case_id"
+    USING USER_DEFINED_HEADER="h_on_card", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_connected_to TO EDGE CONNECTED_TO VALUES($"case_id", $"card_id")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"case_id" != "case_id"
+    USING USER_DEFINED_HEADER="h_connected_to", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 
   LOAD f_case_pattern TO EDGE CASE_PATTERN VALUES($"case_id", $"pattern")
-    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+    WHERE $"case_id" != "case_id"
+    USING USER_DEFINED_HEADER="h_case_pattern", SEPARATOR=",", HEADER="true", EOL="\n",
+      QUOTE="double";
 }

@@ -34,7 +34,8 @@ CREATE VERTEX Transaction (
     dist1 DOUBLE,
     dist2 DOUBLE,
     device_status STRING,
-    proxy STRING,
+    # `proxy` is a GSQL reserved keyword; the source column keeps its name.
+    proxy_flag STRING,
     m_flags STRING
 ) WITH primary_id_as_attribute="true"
 
