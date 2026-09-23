@@ -23,12 +23,23 @@ from fraudtrail.answer.validate import Level, check_answer
 from fraudtrail.casepack import load_case_pack
 from fraudtrail.config import Settings, load_settings
 from fraudtrail.evidence.duckdb_provider import DuckDbProvider
+from fraudtrail.evidence.provider import EvidenceProvider
+from fraudtrail.evidence.tigergraph_provider import TigerGraphProvider
 from fraudtrail.investigate.runner import investigate
 from fraudtrail.llm.client import build_client
 
 log = logging.getLogger("run_agent")
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def build_provider(settings: Settings, offline: bool) -> EvidenceProvider:
+    """TigerGraph is the runtime path; --offline runs the same investigation locally."""
+    if offline:
+        log.info("evidence from the local warehouse")
+        return DuckDbProvider.open(settings.raw_dir, settings.processed_dir)
+    log.info("evidence from TigerGraph at %s", settings.tigergraph.host)
+    return TigerGraphProvider.from_env(settings)
 
 
 def build_narrator(settings: Settings) -> Narrator:
@@ -48,7 +59,7 @@ def main() -> None:
     parser.add_argument(
         "--offline",
         action="store_true",
-        help="use the local warehouse instead of TigerGraph",
+        help="use the local warehouse instead of TigerGraph (no workspace needed)",
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -59,7 +70,7 @@ def main() -> None:
     if wanted:
         cases = tuple(case for case in cases if case.case_id in wanted)
 
-    provider = DuckDbProvider.open(settings.raw_dir, settings.processed_dir)
+    provider = build_provider(settings, offline=args.offline)
     narrator = build_narrator(settings)
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -67,6 +78,9 @@ def main() -> None:
     for case in cases:
         result = investigate(provider, case)
         answer = build_answer(result, narrator)
+        if isinstance(narrator, LlmNarrator):
+            # The prose is written last, so the model's cost is known only now.
+            answer = answer.model_copy(update={"tokens": narrator.take_tokens()})
         issues = check_answer(answer, trigger=case.trigger)
         errors = [i for i in issues if i.level is Level.ERROR]
         for issue in issues:

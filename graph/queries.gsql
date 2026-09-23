@@ -78,11 +78,18 @@ CREATE OR REPLACE QUERY device_reach(VERTEX<DeviceProfile> profile, DATETIME fro
   SetAccum<STRING> @@cards, @@customers, @@txns, @@prior_cases;
   MinAccum<DATETIME> @@first_ts;
   MaxAccum<DATETIME> @@last_ts;
+  # A ring device is new to every account it touches, while a browser fingerprint that
+  # hundreds of ordinary customers share is not. That share is what separates the two.
+  # Every recorded id_23 value carries the IP_PROXY prefix, so non-empty means a proxy.
+  SumAccum<INT> @@n_txns, @@n_new_device, @@n_proxy;
 
   Seed = {profile};
   Txns = SELECT t FROM Seed:d -(FROM_DEVICE)- Transaction:t
          WHERE t.ts >= from_ts AND t.ts <= to_ts
-         ACCUM @@txns += t.txn_id, @@first_ts += t.ts, @@last_ts += t.ts;
+         ACCUM @@txns += t.txn_id, @@first_ts += t.ts, @@last_ts += t.ts,
+               @@n_txns += 1,
+               CASE WHEN t.device_status == "New" THEN @@n_new_device += 1 END,
+               CASE WHEN t.proxy_flag != "" THEN @@n_proxy += 1 END;
   Cards = SELECT c FROM Txns:t -(MADE)- Card:c
           ACCUM @@cards += c.card_id, @@customers += c.customer_id;
   Cases = SELECT cc FROM Txns:t -(INVOLVES)- ClosedCase:cc
@@ -90,7 +97,8 @@ CREATE OR REPLACE QUERY device_reach(VERTEX<DeviceProfile> profile, DATETIME fro
           ACCUM @@prior_cases += cc.case_id;
 
   PRINT @@cards AS cards, @@customers AS customers, @@txns AS txns,
-        @@prior_cases AS prior_fraud_cases, @@first_ts AS first_ts, @@last_ts AS last_ts;
+        @@prior_cases AS prior_fraud_cases, @@first_ts AS first_ts, @@last_ts AS last_ts,
+        @@n_txns AS n_txns, @@n_new_device AS n_new_device, @@n_proxy AS n_proxy;
 }
 
 # Where this card has been used and when, one row per billing region. Out-of-region use
@@ -114,6 +122,9 @@ CREATE OR REPLACE QUERY region_timeline(VERTEX<Card> card, DATETIME before_ts)
 # other cards, or naming it as a connected card. This is the agent's case memory.
 CREATE OR REPLACE QUERY prior_cases(VERTEX<Card> card, DATETIME before_ts, INT max_cases = 50)
     FOR GRAPH FraudTrail SYNTAX v2 {
+  # A closed case records no card of its own, so each one's card comes from its edge.
+  MapAccum<STRING, STRING> @@card_of;
+
   Seed = {card};
   SameCard = SELECT cc FROM Seed:c -(ON_CARD)- ClosedCase:cc
              WHERE cc.opened_at < before_ts
@@ -126,7 +137,19 @@ CREATE OR REPLACE QUERY prior_cases(VERTEX<Card> card, DATETIME before_ts, INT m
   SiblingCases = SELECT cc FROM Siblings:c2 -(ON_CARD)- ClosedCase:cc
                  WHERE cc.opened_at < before_ts
                  ORDER BY cc.opened_at DESC LIMIT max_cases;
-  PRINT SameCard AS same_card, Connected AS connected, SiblingCases AS sibling_card;
+  AllCases = SameCard UNION Connected UNION SiblingCases;
+  CaseCards = SELECT c3 FROM AllCases:cc -(ON_CARD)- Card:c3
+              ACCUM @@card_of += (cc.case_id -> c3.card_id);
+  PRINT SameCard AS same_card, Connected AS connected, SiblingCases AS sibling_card,
+        @@card_of AS card_of;
+}
+
+# Every card the cardholder holds, this one included.
+CREATE OR REPLACE QUERY customer_cards(VERTEX<Card> card) FOR GRAPH FraudTrail SYNTAX v2 {
+  Seed = {card};
+  Owners = SELECT cu FROM Seed:c -(OWNS)- Customer:cu;
+  Cards = SELECT c2 FROM Owners:cu -(OWNS)- Card:c2;
+  PRINT Cards AS cards;
 }
 
 # Cards that share this card's device profiles or recipient email domains in a window,

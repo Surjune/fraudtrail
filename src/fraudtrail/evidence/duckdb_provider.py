@@ -26,6 +26,7 @@ from fraudtrail.evidence.models import (
     Txn,
 )
 from fraudtrail.evidence.provider import EvidenceError
+from fraudtrail.evidence.similarity import keywords, most_similar
 
 log = logging.getLogger(__name__)
 
@@ -66,50 +67,6 @@ _TXN_COLUMNS = (
     "txn_id, card_id, ts, amount, product_cd, channel, risk_score, region, country, "
     "device_status, proxy, profile_id, purchaser_email, recipient_email, m_flags"
 )
-
-# Words that say nothing about which case is similar.
-_STOPWORDS = frozenset(
-    [
-        "a",
-        "an",
-        "the",
-        "and",
-        "or",
-        "of",
-        "to",
-        "in",
-        "on",
-        "for",
-        "with",
-        "from",
-        "this",
-        "that",
-        "they",
-        "them",
-        "their",
-        "there",
-        "here",
-        "is",
-        "was",
-        "were",
-        "are",
-        "be",
-        "been",
-        "it",
-        "its",
-        "as",
-        "at",
-        "by",
-        "not",
-        "no",
-    ]
-)
-
-
-def _keywords(text: str) -> frozenset[str]:
-    """Distinctive words, lowercased: the units both sides of a similarity search share."""
-    words = {token.strip(".,;:'\"()$").lower() for token in text.split()}
-    return frozenset(w for w in words if len(w) > 3 and w not in _STOPWORDS and not w.isdigit())
 
 
 def _txn(row: tuple[Any, ...]) -> Txn:
@@ -163,9 +120,9 @@ class DuckDbProvider:
         con.execute("CREATE INDEX txv_card ON txv (card_id)")
         con.execute("CREATE INDEX txv_profile ON txv (profile_id)")
         # The closed cases are small and every investigation searches them, so hold their
-        # notes in memory as word sets.
-        self._closed: list[tuple[tuple[Any, ...], frozenset[str]]] = [
-            (row, frozenset(_keywords(str(row[9]))))
+        # notes in memory as word sets, exactly as the graph provider does.
+        self._closed: list[tuple[PriorCase, frozenset[str]]] = [
+            (_prior_case(row, "similar"), keywords(str(row[9])))
             for row in self._rows(f"SELECT {_CASE_COLUMNS} FROM cc", [])
         ]
 
@@ -354,20 +311,5 @@ class DuckDbProvider:
         return tuple(_txn(r) for r in rows)
 
     def similar_cases(self, query: str, before: datetime, k: int = 5) -> tuple[PriorCase, ...]:
-        """Closed cases whose notes share the most distinctive words with this situation.
-
-        The graph provider does this with vector search over the same notes; offline,
-        overlap on the analysts' own wording retrieves the same kind of case.
-        """
-        words = _keywords(query)
-        if not words:
-            return ()
-        scored: list[tuple[int, tuple[Any, ...]]] = []
-        for row, note_words in self._closed:
-            if row[4] >= before:
-                continue
-            overlap = len(words & note_words)
-            if overlap:
-                scored.append((overlap, row))
-        scored.sort(key=lambda item: (item[0], item[1][4]), reverse=True)
-        return tuple(_prior_case(row, "similar") for _, row in scored[:k])
+        """Closed cases whose notes read like this situation, ranked as the graph ranks them."""
+        return most_similar(query, self._closed, before, k)

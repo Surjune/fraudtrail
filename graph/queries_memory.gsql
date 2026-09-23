@@ -17,6 +17,19 @@ CREATE OR REPLACE QUERY similar_closed_cases(LIST<FLOAT> query_vec, INT k = 5,
   PRINT Recent AS cases, @@distance AS distance, Cards AS cards, Txns AS transactions;
 }
 
+# The closed-case corpus, read once so retrieval can rank it on the analysts' own words.
+# This is what answers "which case reads like this one" until the notes carry embeddings;
+# after that similar_closed_cases above does the same job in one hop.
+CREATE OR REPLACE QUERY closed_case_notes(DATETIME before_ts, INT max_cases = 8000)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<STRING, STRING> @@card_of;
+  Cases = SELECT cc FROM ClosedCase:cc WHERE cc.opened_at < before_ts
+          ORDER BY cc.opened_at DESC LIMIT max_cases;
+  CaseCards = SELECT c FROM Cases:cc -(ON_CARD)- Card:c
+              ACCUM @@card_of += (cc.case_id -> c.card_id);
+  PRINT Cases AS cases, @@card_of AS card_of;
+}
+
 # Policy, pattern and regulatory text for the model to ground its wording in.
 CREATE OR REPLACE QUERY doc_search(LIST<FLOAT> query_vec, INT k = 5)
     FOR GRAPH FraudTrail SYNTAX v2 {

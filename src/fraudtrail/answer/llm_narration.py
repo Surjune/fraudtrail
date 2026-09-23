@@ -38,17 +38,21 @@ DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 FENCE = re.compile(r"^```[a-z]*\n|\n```$")
 
 SYSTEM = (
-    "You write for a bank's fraud investigations team. You are given a passage that is "
-    "already factually correct and complete, and you rewrite it so an analyst or a "
-    "regulator reads it easily.\n\n"
+    "You write for a bank's fraud investigations team. The passage you are given was "
+    "assembled from templates: the facts in it are correct and complete, but it reads "
+    "mechanically. Your job is to write it the way an experienced investigator would.\n\n"
     "Rules, in order of importance:\n"
     "1. Never add a fact. Every identifier, amount, date, count and name in your answer "
     "must appear in the passage you were given. If something is not there, it does not "
-    "exist.\n"
-    "2. Never remove a fact. Identifiers, amounts and dates all survive the rewrite.\n"
+    "exist. You have no other knowledge of this case.\n"
+    "2. Never remove a fact. Every identifier, amount and date survives the rewrite.\n"
     "3. Never soften or strengthen a judgement. If the passage says the evidence is "
     "mixed, so does your answer.\n"
-    "4. Write plain declarative prose. No headings, no bullet points, no code fences, no "
+    "4. Do rewrite. The passage is not already good English: fix the machine artefacts "
+    "such as 'transaction(s)', 'channel(s)' and 'product code(s)', join the clipped "
+    "sentences into connected ones, and order the facts so the sequence of events is "
+    "clear. Returning the passage unchanged is a failure.\n"
+    "5. Write plain declarative prose. No headings, no bullet points, no code fences, no "
     "preamble such as 'Here is'. Return only the rewritten passage."
 )
 
@@ -96,7 +100,8 @@ class LlmNarrator:
     def summary(self, n: Narration) -> str:
         source = self._fallback.summary(n)
         prompt = (
-            "Rewrite this case summary for the analyst who picks the case up next. "
+            "Rewrite this case summary for the analyst who picks the case up next: what "
+            "was flagged, what the evidence shows, and what was decided. "
             f"Use between {SUMMARY_MIN_SENTENCES} and {SUMMARY_MAX_SENTENCES} "
             "sentences.\n\n"
             f"{source}"
@@ -107,12 +112,20 @@ class LlmNarrator:
         source = self._fallback.sar_narrative(n)
         prompt = (
             "Rewrite this suspicious activity report narrative so it stands on its own "
-            "for a regulator who has not seen the case. Keep every identifier, amount "
-            f"and date. Use between {NARRATIVE_MIN_SENTENCES} and "
-            f"{NARRATIVE_MAX_SENTENCES} sentences.\n\n"
+            "for a regulator who has not seen the case. Tell it in order: what was used, "
+            "when, through which channel, what made it suspicious, and what the bank did. "
+            "Keep every identifier, amount and date. "
+            f"Use between {NARRATIVE_MIN_SENTENCES} and {NARRATIVE_MAX_SENTENCES} "
+            "sentences.\n\n"
             f"{source}"
         )
         return self._rewrite(source, prompt, NARRATIVE_MIN_SENTENCES, NARRATIVE_MAX_SENTENCES)
+
+    def take_tokens(self) -> int:
+        """Tokens spent since the last call, so each answer records its own cost."""
+        spent = self.tokens
+        self.tokens = 0
+        return spent
 
     def _rewrite(self, source: str, prompt: str, low: int, high: int) -> str:
         try:

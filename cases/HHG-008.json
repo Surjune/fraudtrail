@@ -145,5 +145,5 @@
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 59.34
+  "latency_s": 4.6
 }
