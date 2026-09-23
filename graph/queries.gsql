@@ -1,0 +1,197 @@
+# Installed queries: the agent's evidence toolset.
+#
+# Each query retrieves evidence and does the traversal and aggregation the graph is good
+# at. Pattern judgements live in the detectors, which read these results. Every query is
+# read-only except write_case, which stores an investigation as case memory.
+#
+# Installed by scripts/install_queries.py. The same queries are what TigerGraph MCP
+# exposes to the agent as tools.
+
+USE GRAPH FraudTrail
+
+# The flagged transaction with its card, owner, the owner's other cards and its device.
+CREATE OR REPLACE QUERY case_context(STRING flagged_txn) FOR GRAPH FraudTrail SYNTAX v2 {
+  Seed = {to_vertex(flagged_txn, "Transaction")};
+  Cards = SELECT c FROM Seed:t -(MADE)- Card:c;
+  Owners = SELECT cu FROM Cards:c -(OWNS)- Customer:cu;
+  Siblings = SELECT c2 FROM Owners:cu -(OWNS)- Card:c2;
+  Devices = SELECT d FROM Seed:t -(FROM_DEVICE)- DeviceProfile:d;
+  Emails = SELECT e FROM Seed:t -((PURCHASER_EMAIL|RECIPIENT_EMAIL))- EmailDomain:e;
+  PRINT Seed AS flagged, Cards AS card, Owners AS customer, Siblings AS customer_cards,
+        Devices AS device, Emails AS email;
+}
+
+# Every transaction on one card inside a time window, with the device profile of each.
+CREATE OR REPLACE QUERY card_window(STRING card, DATETIME from_ts, DATETIME to_ts,
+    INT max_txns = 500) FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<STRING, STRING> @@device_of;
+  MapAccum<STRING, STRING> @@region_of;
+  Seed = {to_vertex(card, "Card")};
+  Txns = SELECT t FROM Seed:c -(MADE)- Transaction:t
+         WHERE t.ts >= from_ts AND t.ts <= to_ts
+         ORDER BY t.ts DESC
+         LIMIT max_txns;
+  Devices = SELECT d FROM Txns:t -(FROM_DEVICE)- DeviceProfile:d
+            ACCUM @@device_of += (t.txn_id -> d.profile_id);
+  Regions = SELECT r FROM Txns:t -(BILLED_IN)- BillingRegion:r
+            ACCUM @@region_of += (t.txn_id -> r.region);
+  PRINT Txns AS txns, @@device_of AS device_of, @@region_of AS region_of;
+}
+
+# What normal looks like on this card before a point in time: volumes, amounts, and the
+# regions, products, channels and devices it has used.
+CREATE OR REPLACE QUERY card_baseline(STRING card, DATETIME before_ts)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  SumAccum<INT> @@n_txns, @@n_online;
+  SumAccum<DOUBLE> @@sum_amount, @@sum_amount_sq;
+  MaxAccum<DOUBLE> @@max_amount;
+  MinAccum<DATETIME> @@first_ts;
+  MaxAccum<DATETIME> @@last_ts;
+  MapAccum<STRING, SumAccum<INT>> @@regions, @@products, @@profiles, @@emails;
+
+  Seed = {to_vertex(card, "Card")};
+  Txns = SELECT t FROM Seed:c -(MADE)- Transaction:t WHERE t.ts < before_ts
+         ACCUM @@n_txns += 1,
+               @@sum_amount += t.amount,
+               @@sum_amount_sq += t.amount * t.amount,
+               @@max_amount += t.amount,
+               @@first_ts += t.ts,
+               @@last_ts += t.ts,
+               @@products += (t.product_cd -> 1),
+               CASE WHEN t.channel == "online" THEN @@n_online += 1 END,
+               CASE WHEN t.region != "" THEN @@regions += (t.region -> 1) END;
+  Devices = SELECT d FROM Txns:t -(FROM_DEVICE)- DeviceProfile:d
+            ACCUM @@profiles += (d.profile_id -> 1);
+  Emails = SELECT e FROM Txns:t -(PURCHASER_EMAIL)- EmailDomain:e
+           ACCUM @@emails += (e.domain -> 1);
+
+  PRINT @@n_txns AS n_txns, @@n_online AS n_online, @@sum_amount AS sum_amount,
+        @@sum_amount_sq AS sum_amount_sq, @@max_amount AS max_amount,
+        @@first_ts AS first_ts, @@last_ts AS last_ts, @@regions AS regions,
+        @@products AS products, @@profiles AS profiles, @@emails AS emails;
+}
+
+# Which other cards used one device profile in a window, and whether the bank already
+# confirmed fraud on any of them. This is what turns one alert into a ring.
+CREATE OR REPLACE QUERY device_reach(STRING profile, DATETIME from_ts, DATETIME to_ts)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  SetAccum<STRING> @@cards, @@customers, @@txns, @@prior_cases;
+  MinAccum<DATETIME> @@first_ts;
+  MaxAccum<DATETIME> @@last_ts;
+
+  Seed = {to_vertex(profile, "DeviceProfile")};
+  Txns = SELECT t FROM Seed:d -(FROM_DEVICE)- Transaction:t
+         WHERE t.ts >= from_ts AND t.ts <= to_ts
+         ACCUM @@txns += t.txn_id, @@first_ts += t.ts, @@last_ts += t.ts;
+  Cards = SELECT c FROM Txns:t -(MADE)- Card:c
+          ACCUM @@cards += c.card_id, @@customers += c.customer_id;
+  Cases = SELECT cc FROM Txns:t -(INVOLVES)- ClosedCase:cc
+          WHERE cc.outcome == "confirmed_fraud"
+          ACCUM @@prior_cases += cc.case_id;
+
+  PRINT @@cards AS cards, @@customers AS customers, @@txns AS txns,
+        @@prior_cases AS prior_fraud_cases, @@first_ts AS first_ts, @@last_ts AS last_ts;
+}
+
+# Where this card has been used and when, one row per billing region. Out-of-region use
+# is a trip when home activity pauses and a clone when it does not.
+CREATE OR REPLACE QUERY region_timeline(STRING card, DATETIME before_ts)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<STRING, SumAccum<INT>> @@counts;
+  MapAccum<STRING, MinAccum<DATETIME>> @@first_seen;
+  MapAccum<STRING, MaxAccum<DATETIME>> @@last_seen;
+
+  Seed = {to_vertex(card, "Card")};
+  Txns = SELECT t FROM Seed:c -(MADE)- Transaction:t
+         WHERE t.ts < before_ts AND t.region != ""
+         ACCUM @@counts += (t.region -> 1),
+               @@first_seen += (t.region -> t.ts),
+               @@last_seen += (t.region -> t.ts);
+  PRINT @@counts AS counts, @@first_seen AS first_seen, @@last_seen AS last_seen;
+}
+
+# The bank's closed cases that touch this card: on the card itself, on the customer's
+# other cards, or naming it as a connected card. This is the agent's case memory.
+CREATE OR REPLACE QUERY prior_cases(STRING card, DATETIME before_ts, INT max_cases = 50)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  Seed = {to_vertex(card, "Card")};
+  SameCard = SELECT cc FROM Seed:c -(ON_CARD)- ClosedCase:cc
+             WHERE cc.opened_at < before_ts
+             ORDER BY cc.opened_at DESC LIMIT max_cases;
+  Connected = SELECT cc FROM Seed:c -(CONNECTED_TO)- ClosedCase:cc
+              WHERE cc.opened_at < before_ts
+              ORDER BY cc.opened_at DESC LIMIT max_cases;
+  Owners = SELECT cu FROM Seed:c -(OWNS)- Customer:cu;
+  Siblings = SELECT c2 FROM Owners:cu -(OWNS)- Card:c2 WHERE c2.card_id != card;
+  SiblingCases = SELECT cc FROM Siblings:c2 -(ON_CARD)- ClosedCase:cc
+                 WHERE cc.opened_at < before_ts
+                 ORDER BY cc.opened_at DESC LIMIT max_cases;
+  PRINT SameCard AS same_card, Connected AS connected, SiblingCases AS sibling_card;
+}
+
+# Cards that share this card's device profiles or recipient email domains in a window,
+# with how many cards each shared element reaches.
+CREATE OR REPLACE QUERY shared_origin(STRING card, DATETIME from_ts, DATETIME to_ts,
+    INT min_cards = 3) FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<STRING, SetAccum<STRING>> @@cards_by_element;
+  SetAccum<STRING> @@elements;
+
+  Seed = {to_vertex(card, "Card")};
+  MyTxns = SELECT t FROM Seed:c -(MADE)- Transaction:t
+           WHERE t.ts >= from_ts AND t.ts <= to_ts;
+  MyDevices = SELECT d FROM MyTxns:t -(FROM_DEVICE)- DeviceProfile:d
+              ACCUM @@elements += "device:" + d.profile_id;
+  OtherTxns = SELECT t2 FROM MyDevices:d -(FROM_DEVICE)- Transaction:t2
+              WHERE t2.ts >= from_ts AND t2.ts <= to_ts;
+  OtherCards = SELECT c2 FROM OtherTxns:t2 -(MADE)- Card:c2
+               ACCUM FOREACH e IN @@elements DO @@cards_by_element += (e -> c2.card_id) END;
+
+  MyEmails = SELECT e FROM MyTxns:t -(RECIPIENT_EMAIL)- EmailDomain:e;
+  EmailTxns = SELECT t3 FROM MyEmails:e -(RECIPIENT_EMAIL)- Transaction:t3
+              WHERE t3.ts >= from_ts AND t3.ts <= to_ts;
+  EmailCards = SELECT c3 FROM EmailTxns:t3 -(MADE)- Card:c3;
+
+  PRINT @@cards_by_element AS cards_by_element, MyDevices AS devices,
+        OtherCards AS device_cards, EmailCards AS email_cards, min_cards AS min_cards;
+}
+
+# Label propagation over cards that share a device profile: the rings in the exam window,
+# found without being told what to look for. Runs a fixed number of rounds so it always
+# terminates.
+CREATE OR REPLACE QUERY ring_components(DATETIME from_ts, DATETIME to_ts, INT rounds = 6,
+    INT min_ring_cards = 3) FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<STRING, SetAccum<STRING>> @@cards_on_device;
+  MapAccum<STRING, MinAccum<STRING>> @@label;
+  MapAccum<STRING, SetAccum<STRING>> @@members;
+  SetAccum<STRING> @@devices;
+
+  Txns = SELECT t FROM Transaction:t WHERE t.ts >= from_ts AND t.ts <= to_ts;
+  OnDevice = SELECT d FROM Txns:t -(FROM_DEVICE)- DeviceProfile:d
+             ACCUM @@devices += d.profile_id;
+  Pairs = SELECT c FROM OnDevice:d -(FROM_DEVICE)- Transaction:t2 -(MADE)- Card:c
+          WHERE t2.ts >= from_ts AND t2.ts <= to_ts
+          ACCUM @@cards_on_device += (d.profile_id -> c.card_id),
+                @@label += (c.card_id -> c.card_id);
+
+  # Each round, every card on a device takes the smallest label on that device.
+  FOREACH round IN RANGE[1, rounds] DO
+    FOREACH (device, cards) IN @@cards_on_device DO
+      STRING smallest = "";
+      FOREACH card IN cards DO
+        IF smallest == "" OR @@label.get(card) < smallest THEN
+          smallest = @@label.get(card);
+        END;
+      END;
+      FOREACH card IN cards DO
+        @@label += (card -> smallest);
+      END;
+    END;
+  END;
+
+  FOREACH (card, label) IN @@label DO
+    @@members += (label -> card);
+  END;
+
+  PRINT @@members AS components, @@cards_on_device AS cards_on_device,
+        min_ring_cards AS min_ring_cards;
+}

@@ -1,0 +1,90 @@
+# Loading job for the files written by scripts/export_graph.py.
+# Each DEFINE FILENAME is a tag; the loader posts one CSV at a time against its tag, so
+# transaction-derived files can be uploaded month by month.
+
+USE GRAPH FraudTrail
+
+CREATE LOADING JOB load_fraudtrail FOR GRAPH FraudTrail {
+  DEFINE FILENAME f_customer;
+  DEFINE FILENAME f_card;
+  DEFINE FILENAME f_transaction;
+  DEFINE FILENAME f_device_profile;
+  DEFINE FILENAME f_email_domain;
+  DEFINE FILENAME f_billing_region;
+  DEFINE FILENAME f_pattern;
+  DEFINE FILENAME f_closed_case;
+  DEFINE FILENAME f_owns;
+  DEFINE FILENAME f_made;
+  DEFINE FILENAME f_from_device;
+  DEFINE FILENAME f_purchaser_email;
+  DEFINE FILENAME f_recipient_email;
+  DEFINE FILENAME f_billed_in;
+  DEFINE FILENAME f_next;
+  DEFINE FILENAME f_involves;
+  DEFINE FILENAME f_on_card;
+  DEFINE FILENAME f_connected_to;
+  DEFINE FILENAME f_case_pattern;
+
+  LOAD f_customer TO VERTEX Customer VALUES($"customer_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_card TO VERTEX Card VALUES($"card_id", $"customer_id", $"network", $"card_type",
+      $"first_seen", $"last_seen", $"txn_count", _)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_transaction TO VERTEX Transaction VALUES($"txn_id", $"ts", $"amount", $"product_cd",
+      $"channel", $"risk_score", $"region", $"country", $"dist1", $"dist2", $"device_status",
+      $"proxy", $"m_flags")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_device_profile TO VERTEX DeviceProfile VALUES($"profile_id", $"device_info", $"os",
+      $"browser", $"screen", $"device_type")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_email_domain TO VERTEX EmailDomain VALUES($"domain")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_billing_region TO VERTEX BillingRegion VALUES($"region")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_pattern TO VERTEX Pattern VALUES($"name", $"description", $"documented")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_closed_case TO VERTEX ClosedCase VALUES($"case_id", $"outcome", $"pattern",
+      $"opened_at", $"closed_at", $"exposure_usd", $"n_txns", $"actions_taken",
+      $"report_filed", $"analyst_notes")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_owns TO EDGE OWNS VALUES($"customer_id", $"card_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_made TO EDGE MADE VALUES($"card_id", $"txn_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_from_device TO EDGE FROM_DEVICE VALUES($"txn_id", $"profile_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_purchaser_email TO EDGE PURCHASER_EMAIL VALUES($"txn_id", $"domain")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_recipient_email TO EDGE RECIPIENT_EMAIL VALUES($"txn_id", $"domain")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_billed_in TO EDGE BILLED_IN VALUES($"txn_id", $"region")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_next TO EDGE NEXT VALUES($"txn_id", $"next_txn_id", $"gap_minutes")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_involves TO EDGE INVOLVES VALUES($"case_id", $"txn_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_on_card TO EDGE ON_CARD VALUES($"case_id", $"card_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_connected_to TO EDGE CONNECTED_TO VALUES($"case_id", $"card_id")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  LOAD f_case_pattern TO EDGE CASE_PATTERN VALUES($"case_id", $"pattern")
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+}

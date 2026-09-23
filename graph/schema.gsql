@@ -35,9 +35,7 @@ CREATE VERTEX Transaction (
     dist2 DOUBLE,
     device_status STRING,
     proxy STRING,
-    m_flags STRING,
-    c_counts LIST<DOUBLE>,
-    d_deltas LIST<DOUBLE>
+    m_flags STRING
 ) WITH primary_id_as_attribute="true"
 
 CREATE VERTEX DeviceProfile (

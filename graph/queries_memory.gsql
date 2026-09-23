@@ -1,0 +1,86 @@
+# GraphRAG retrieval and case write-back.
+#
+# Retrieval is hybrid on purpose: a vector search finds text that reads like this case,
+# then the graph expands each hit into the cards, transactions and devices behind it, so
+# the model receives connected evidence instead of loose paragraphs.
+
+USE GRAPH FraudTrail
+
+# Closed cases whose analyst notes read like this situation, expanded to what they touched.
+CREATE OR REPLACE QUERY similar_closed_cases(LIST<DOUBLE> query_vec, INT k = 5,
+    DATETIME before_ts = to_datetime("2017-01-01 00:00:00")) FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<VERTEX, FLOAT> @@distance;
+  Hits = vectorSearch({ClosedCase.notes_emb}, query_vec, k, {distance_map: @@distance});
+  Recent = SELECT cc FROM Hits:cc WHERE cc.opened_at < before_ts;
+  Cards = SELECT c FROM Recent:cc -(ON_CARD)- Card:c;
+  Txns = SELECT t FROM Recent:cc -(INVOLVES)- Transaction:t;
+  PRINT Recent AS cases, @@distance AS distance, Cards AS cards, Txns AS transactions;
+}
+
+# Policy, pattern and regulatory text for the model to ground its wording in.
+CREATE OR REPLACE QUERY doc_search(LIST<DOUBLE> query_vec, INT k = 5)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<VERTEX, FLOAT> @@distance;
+  Hits = vectorSearch({DocChunk.content_emb}, query_vec, k, {distance_map: @@distance});
+  PRINT Hits AS chunks, @@distance AS distance;
+}
+
+# This agent's own earlier investigations: memory it wrote during this run.
+CREATE OR REPLACE QUERY similar_investigations(LIST<DOUBLE> query_vec, INT k = 5)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<VERTEX, FLOAT> @@distance;
+  Hits = vectorSearch({InvestigationCase.summary_emb}, query_vec, k, {distance_map: @@distance});
+  Cards = SELECT c FROM Hits:i -(INV_ON_CARD)- Card:c;
+  PRINT Hits AS cases, @@distance AS distance, Cards AS cards;
+}
+
+# Store an investigation as case memory: the case itself, what it touched, and the
+# patterns and prior cases it drew on.
+CREATE OR REPLACE QUERY write_case(STRING case_id, STRING exam_case_id, STRING trigger_type,
+    STRING status, STRING verdict, DOUBLE fraud_probability, STRING pattern,
+    STRING pattern_description, DOUBLE exposure_usd, STRING summary, BOOL report_filed,
+    DATETIME opened_at, STRING card, STRING flagged_txn, SET<STRING> affected_txns,
+    SET<STRING> connected_cards, SET<STRING> device_profiles, SET<STRING> prior_cases)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  INSERT INTO InvestigationCase VALUES (case_id, exam_case_id, trigger_type, status, verdict,
+      fraud_probability, pattern, pattern_description, exposure_usd, summary, report_filed,
+      opened_at, now());
+  INSERT INTO INV_ON_CARD VALUES (case_id, card);
+  INSERT INTO INV_FLAGGED VALUES (case_id, flagged_txn);
+  IF pattern != "none" THEN
+    INSERT INTO INV_PATTERN VALUES (case_id, pattern);
+  END;
+  FOREACH t IN affected_txns DO
+    INSERT INTO INV_AFFECTS VALUES (case_id, t);
+  END;
+  FOREACH c IN connected_cards DO
+    INSERT INTO INV_CONNECTED_CARD VALUES (case_id, c);
+  END;
+  FOREACH d IN device_profiles DO
+    INSERT INTO INV_DEVICE VALUES (case_id, d);
+  END;
+  FOREACH p IN prior_cases DO
+    INSERT INTO INV_SIMILAR_CLOSED VALUES (case_id, p);
+  END;
+  PRINT case_id AS written;
+}
+
+# One step of an investigation: the tool call, the evidence request, the decision. The
+# case's progression can be replayed from these.
+CREATE OR REPLACE QUERY write_case_event(STRING case_id, STRING event_id, INT step,
+    STRING kind, STRING detail, DATETIME at) FOR GRAPH FraudTrail SYNTAX v2 {
+  INSERT INTO CaseEvent VALUES (event_id, step, kind, detail, at);
+  INSERT INTO HAS_EVENT VALUES (case_id, event_id);
+  PRINT event_id AS written;
+}
+
+# Everything stored about one investigation, for the UI and for the next investigation.
+CREATE OR REPLACE QUERY read_case(STRING case_id) FOR GRAPH FraudTrail SYNTAX v2 {
+  Seed = {to_vertex(case_id, "InvestigationCase")};
+  Events = SELECT e FROM Seed:i -(HAS_EVENT)- CaseEvent:e ORDER BY e.step ASC;
+  Affected = SELECT t FROM Seed:i -(INV_AFFECTS)- Transaction:t;
+  Connected = SELECT c FROM Seed:i -(INV_CONNECTED_CARD)- Card:c;
+  Prior = SELECT cc FROM Seed:i -(INV_SIMILAR_CLOSED)- ClosedCase:cc;
+  PRINT Seed AS investigation, Events AS events, Affected AS affected,
+        Connected AS connected_cards, Prior AS prior_cases;
+}
