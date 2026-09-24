@@ -7,6 +7,10 @@ on an upgrade the night before a deadline.
 A free-tier key is rate limited by the minute, so a refusal is ordinary rather than
 exceptional and is retried with a widening gap. Anything still unusable after that raises
 `LlmError`; the caller falls back to templated prose rather than shipping nothing.
+
+A free tier is also limited by the day, per model: twenty requests on some, fewer than one
+run needs. A spent daily quota is not retried, since it cannot come back inside the run.
+Several models may be configured instead, and the run moves to the next when one is spent.
 """
 
 from __future__ import annotations
@@ -30,6 +34,17 @@ BACKOFF_FACTOR = 3.0
 RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 TIMEOUT_S = 60.0
 
+# A 429 names the quota it hit. Gemini's per-day quotas carry this in their id, as in
+# GenerateRequestsPerDayPerProjectPerModel-FreeTier; per-minute ones do not.
+TOO_MANY_REQUESTS = 429
+DAILY_QUOTA_MARKER = "PerDay"
+
+# A per-minute refusal says how long to wait. Beyond a minute it is not a per-minute limit.
+MAX_RETRY_DELAY_S = 60.0
+
+# Several models, in order of preference, for when the first one's daily quota is spent.
+MODEL_SEPARATOR = ","
+
 # The longest text asked for is a twelve-sentence narrative, but a reasoning model
 # spends output tokens thinking before it writes: one rewrite here used 2,153 of them and
 # returned a truncated fragment under a 900 budget. The ceiling covers both.
@@ -50,6 +65,10 @@ class LlmError(RuntimeError):
     """The model could not be reached, or answered with something unusable."""
 
 
+class QuotaExhausted(LlmError):
+    """The model's daily quota is spent. Nothing inside this run will bring it back."""
+
+
 @dataclass(frozen=True)
 class Completion:
     text: str
@@ -60,6 +79,43 @@ class LlmClient(Protocol):
     def complete(self, system: str, prompt: str) -> Completion: ...
 
 
+def _quota_details(body: str) -> list[JsonDict]:
+    """The structured details a quota refusal carries, or none when the body is not JSON."""
+    try:
+        decoded = json.loads(body)
+    except json.JSONDecodeError:
+        return []
+    error = decoded.get("error") if isinstance(decoded, dict) else None
+    details = error.get("details") if isinstance(error, dict) else None
+    return [d for d in details if isinstance(d, dict)] if isinstance(details, list) else []
+
+
+def is_daily_quota(body: str) -> bool:
+    """Whether a 429 is a spent daily quota rather than a busy minute."""
+    for detail in _quota_details(body):
+        violations = detail.get("violations")
+        if not isinstance(violations, list):
+            continue
+        for violation in violations:
+            if isinstance(violation, dict) and DAILY_QUOTA_MARKER in str(
+                violation.get("quotaId", "")
+            ):
+                return True
+    return False
+
+
+def retry_delay_s(body: str) -> float:
+    """How long a 429 asks to be left alone, or 0 when it does not say."""
+    for detail in _quota_details(body):
+        delay = str(detail.get("retryDelay", ""))
+        if delay.endswith("s"):
+            try:
+                return min(float(delay[:-1]), MAX_RETRY_DELAY_S)
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
 def _post(url: str, headers: dict[str, str], payload: JsonDict) -> JsonDict:
     """POST JSON and return the decoded body, retrying the statuses worth retrying."""
     body = json.dumps(payload).encode("utf-8")
@@ -67,6 +123,7 @@ def _post(url: str, headers: dict[str, str], payload: JsonDict) -> JsonDict:
     last_error = ""
     for attempt in range(1, MAX_ATTEMPTS + 1):
         request = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        pause = wait
         try:
             with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
                 decoded = json.loads(response.read().decode("utf-8"))
@@ -74,15 +131,19 @@ def _post(url: str, headers: dict[str, str], payload: JsonDict) -> JsonDict:
                 raise LlmError(f"expected a JSON object, got {type(decoded).__name__}")
             return decoded
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", "replace")[:300]
-            last_error = f"HTTP {exc.code}: {detail}"
+            full = exc.read().decode("utf-8", "replace")
+            last_error = f"HTTP {exc.code}: {full[:300]}"
+            if exc.code == TOO_MANY_REQUESTS and is_daily_quota(full):
+                raise QuotaExhausted(f"daily quota spent. {last_error}") from exc
             if exc.code not in RETRY_STATUS:
                 raise LlmError(last_error) from exc
+            if exc.code == TOO_MANY_REQUESTS:
+                pause = max(wait, retry_delay_s(full))
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             last_error = f"{type(exc).__name__}: {exc}"
         if attempt < MAX_ATTEMPTS:
-            log.warning("model call failed (%s); retrying in %.0fs", last_error, wait)
-            time.sleep(wait)
+            log.warning("model call failed (%s); retrying in %.0fs", last_error, pause)
+            time.sleep(pause)
             wait *= BACKOFF_FACTOR
     raise LlmError(f"no usable answer after {MAX_ATTEMPTS} attempts. {last_error}")
 
@@ -192,14 +253,61 @@ class OpenAiCompatibleClient:
         return Completion(text.strip(), tokens)
 
 
+class FallbackClient:
+    """Models in order of preference.
+
+    A model whose daily quota is spent is dropped for the rest of the run. A model that is
+    only busy hands this one request to the next and is asked first again on the next.
+    """
+
+    def __init__(self, clients: list[tuple[str, LlmClient]]) -> None:
+        if not clients:
+            raise ConfigError("FRAUDTRAIL_LLM_MODEL names no model")
+        self._clients = clients
+        self._spent: set[str] = set()
+
+    def complete(self, system: str, prompt: str) -> Completion:
+        last: LlmError | None = None
+        for name, client in self._clients:
+            if name in self._spent:
+                continue
+            try:
+                return client.complete(system, prompt)
+            except QuotaExhausted:
+                self._spent.add(name)
+                log.warning("%s is out of quota for today; dropping it for this run", name)
+            except LlmError as exc:
+                last = exc
+                log.warning("%s is unavailable; trying the next model for this request", name)
+        if len(self._spent) == len(self._clients):
+            raise QuotaExhausted("every configured model is out of quota for today")
+        raise last or LlmError("no configured model answered")
+
+
+def _one_client(settings: LlmSettings, model: str) -> LlmClient | None:
+    if settings.provider is LlmProvider.ANTHROPIC:
+        return AnthropicClient(model, settings.api_key)
+    if settings.provider is LlmProvider.GOOGLE:
+        return GeminiClient(model, settings.api_key)
+    if settings.provider is LlmProvider.OPENAI:
+        return OpenAiCompatibleClient(model, settings.api_key, settings.base_url)
+    return None
+
+
 def build_client(settings: LlmSettings) -> LlmClient | None:
-    """The configured client, or None when no model is configured."""
+    """The configured client, or None when no model is configured.
+
+    FRAUDTRAIL_LLM_MODEL may list several models separated by commas; each is tried in
+    turn once the one before it has spent its daily quota.
+    """
     if not settings.enabled:
         return None
-    if settings.provider is LlmProvider.ANTHROPIC:
-        return AnthropicClient(settings.model, settings.api_key)
-    if settings.provider is LlmProvider.GOOGLE:
-        return GeminiClient(settings.model, settings.api_key)
-    if settings.provider is LlmProvider.OPENAI:
-        return OpenAiCompatibleClient(settings.model, settings.api_key, settings.base_url)
-    return None
+    models = [m.strip() for m in settings.model.split(MODEL_SEPARATOR) if m.strip()]
+    if len(models) <= 1:
+        return _one_client(settings, settings.model.strip())
+    clients: list[tuple[str, LlmClient]] = []
+    for model in models:
+        client = _one_client(settings, model)
+        if client is not None:
+            clients.append((model, client))
+    return FallbackClient(clients)
