@@ -1,0 +1,515 @@
+/*
+ * Hacker House Goa 2026.
+ *
+ * The event poster's palette and type: deep forest green, bright yellow display type in
+ * Bodoni, hot pink accent, cream text, JetBrains Mono for the wide-tracked uppercase
+ * labels. The beach illustration sits behind everything, knocked back by a scrim so the
+ * case text in front of it stays readable.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,700;6..96,900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --void: #0b4a2f;
+  --green-deep: #073a24;
+  --green-mid: #0f5c39;
+  --panel: #08351f;
+  --edge: #1c6b44;
+  --goa-yellow: #f5d914;
+  --goa-pink: #ff1e8c;
+  --goa-cream: #f7f3e3;
+  --muted: rgba(209, 250, 229, 0.55);
+  --faint: rgba(209, 250, 229, 0.4);
+  --display: 'Bodoni Moda', 'Playfair Display', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* ---- Ground: the beach illustration behind a scrim ------------------------------ */
+
+[data-testid="stApp"] {
+  background-color: var(--void);
+  background-image:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--green-deep) 92%, transparent) 0%,
+      color-mix(in srgb, var(--green-deep) 80%, transparent) 30%,
+      color-mix(in srgb, var(--void) 70%, transparent) 64%,
+      color-mix(in srgb, var(--green-deep) 76%, transparent) 100%
+    ),
+    url('app/static/goa-backdrop.png');
+  background-size: cover, cover;
+  background-position: center, center bottom;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+[data-testid="stHeader"] {
+  background: transparent;
+}
+
+[data-testid="stMainBlockContainer"] {
+  padding-top: 1.25rem;
+  max-width: 1280px;
+}
+
+/* ---- Header -------------------------------------------------------------------- */
+
+.ft-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.ft-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.ft-brand svg {
+  color: var(--goa-yellow);
+  flex-shrink: 0;
+}
+
+.ft-title {
+  font-family: var(--display) !important;
+  font-weight: 900 !important;
+  font-size: 1.5rem !important;
+  letter-spacing: -0.01em;
+  color: var(--goa-yellow) !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: nowrap;
+}
+
+.ft-pill {
+  background: var(--goa-pink);
+  color: var(--goa-yellow);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ft-status {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.ft-badge {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, #34d399 35%, transparent);
+  background: color-mix(in srgb, #059669 18%, transparent);
+  color: #a7f3d0;
+  white-space: nowrap;
+}
+
+/* The event's wordmark, centred in the header on a wide screen. */
+.goa-wordmark {
+  position: absolute;
+  left: 50%;
+  top: 0.15rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.14em;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 1.6rem;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.goa-wordmark span {
+  color: var(--goa-yellow);
+  text-shadow: 0 1px 0 #c4ab0f, 0 2px 0 #a89308, 0 3px 0 #8c7a06;
+}
+
+.goa-wordmark .goa-chip {
+  font-family: ui-sans-serif, system-ui, 'Nirmala UI', sans-serif;
+  font-size: 0.52em;
+  font-weight: 700;
+  background: var(--goa-pink);
+  padding: 0.1em 0.32em 0.18em;
+  border-radius: 0.14em;
+  transform: rotate(-6deg);
+  letter-spacing: 0;
+  text-shadow: 0 1px 0 #b31563;
+}
+
+@media (max-width: 1180px) {
+  .goa-wordmark { display: none; }
+}
+
+/* ---- Navigation: numbered tabs --------------------------------------------------- */
+
+.st-key-nav [data-testid="stWidgetLabel"] { display: none; }
+
+.st-key-nav [data-testid="stRadioGroup"] {
+  gap: 0.25rem;
+  counter-reset: nav;
+  flex-wrap: wrap;
+}
+
+.st-key-nav [data-testid="stRadioOption"] {
+  counter-increment: nav;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+/* Hide the radio circle; the whole option is the tab. */
+.st-key-nav [data-testid="stRadioOption"] > div > div:not([data-testid="stMarkdownContainer"]) {
+  display: none;
+}
+
+.st-key-nav [data-testid="stRadioOption"]::before {
+  content: '0' counter(nav);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: rgba(209, 250, 229, 0.45);
+  margin-right: 0.55rem;
+}
+
+.st-key-nav [data-testid="stRadioOption"] p {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(209, 250, 229, 0.5);
+}
+
+.st-key-nav [data-testid="stRadioOption"]:hover p { color: rgba(209, 250, 229, 0.85); }
+
+.st-key-nav [data-testid="stRadioOption"][data-selected="true"] {
+  border-color: color-mix(in srgb, var(--goa-yellow) 35%, transparent);
+  background: color-mix(in srgb, var(--goa-yellow) 10%, transparent);
+}
+
+.st-key-nav [data-testid="stRadioOption"][data-selected="true"]::before,
+.st-key-nav [data-testid="stRadioOption"][data-selected="true"] p { color: var(--goa-yellow); }
+
+.ft-event {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  text-align: right;
+  padding-top: 0.55rem;
+}
+
+.ft-event .ft-team { color: var(--goa-pink); }
+.ft-event .ft-dates { color: var(--faint); letter-spacing: 0.05em; }
+
+/* ---- Panels ---------------------------------------------------------------------- */
+
+[class*="st-key-panel"] {
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--edge) 70%, transparent);
+  border-radius: 0.9rem;
+  padding: 1.1rem 1.25rem 1.2rem;
+  backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow:
+    0 1px 0 0 rgba(247, 243, 227, 0.06) inset,
+    0 8px 32px -12px rgba(0, 0, 0, 0.55);
+}
+
+/* Section labels, like the playground's IDLE and TRY ASKING. */
+.ft-label {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.ft-label b { color: var(--goa-cream); font-weight: 700; }
+
+h1, h2, h3 {
+  font-family: var(--display) !important;
+  font-weight: 900 !important;
+  color: var(--goa-yellow) !important;
+  letter-spacing: -0.01em;
+}
+
+/* The case header: id, verdict and the four headline numbers. */
+.ft-case-id {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 2.1rem;
+  color: var(--goa-yellow);
+  line-height: 1;
+}
+
+.ft-verdict {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 0.75rem;
+}
+
+.ft-verdict.fraud { background: var(--goa-pink); color: var(--goa-yellow); }
+.ft-verdict.legitimate { background: #059669; color: var(--goa-cream); }
+.ft-verdict.uncertain { background: var(--goa-yellow); color: var(--green-deep); }
+
+.ft-pattern {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 0.24rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--goa-cream) 35%, transparent);
+  color: var(--goa-cream);
+  vertical-align: middle;
+  margin-left: 0.5rem;
+}
+
+[data-testid="stMetricLabel"] p {
+  font-family: var(--mono) !important;
+  font-size: 0.64rem !important;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted) !important;
+}
+
+[data-testid="stMetricValue"] {
+  font-family: var(--display);
+  font-weight: 700;
+  color: var(--goa-cream);
+}
+
+/* A strip of small measured figures, like the playground's stage timings. */
+.ft-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+  background: rgba(4, 23, 15, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  margin-top: 0.6rem;
+}
+
+.ft-strip div span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.ft-strip div b {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--goa-cream);
+}
+
+/* ---- Case tabs ------------------------------------------------------------------- */
+
+[role="tablist"] {
+  counter-reset: tab;
+  gap: 0.25rem;
+}
+
+[data-testid="stTab"] {
+  counter-increment: tab;
+  padding: 0.45rem 0.85rem !important;
+  border-radius: 0.55rem;
+}
+
+[data-testid="stTab"]::before {
+  content: '0' counter(tab);
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: rgba(209, 250, 229, 0.45);
+  margin-right: 0.45rem;
+}
+
+[data-testid="stTab"] p { color: rgba(209, 250, 229, 0.55); }
+
+[data-testid="stTab"][data-selected="true"] {
+  background: color-mix(in srgb, var(--goa-yellow) 10%, transparent);
+}
+
+[data-testid="stTab"][data-selected="true"]::before,
+[data-testid="stTab"][data-selected="true"] p { color: var(--goa-yellow); }
+
+.react-aria-SelectionIndicator { background-color: var(--goa-yellow) !important; }
+
+/* ---- Callouts, code, expanders --------------------------------------------------- */
+
+[data-testid="stAlertContainer"] {
+  background: color-mix(in srgb, var(--green-deep) 60%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--goa-yellow) 22%, transparent);
+  border-left: 3px solid var(--goa-yellow);
+  color: var(--goa-cream) !important;
+}
+
+[data-testid="stAlertContainer"] p { color: var(--goa-cream) !important; }
+
+[data-testid="stCode"] pre,
+[data-testid="stCode"] code {
+  background: rgba(4, 23, 15, 0.7) !important;
+  color: #a7f3d0 !important;
+  font-family: var(--mono) !important;
+}
+
+p code, li code {
+  background: rgba(245, 217, 20, 0.1) !important;
+  color: var(--goa-yellow) !important;
+  font-family: var(--mono) !important;
+}
+
+[data-testid="stExpander"] details {
+  background: rgba(4, 23, 15, 0.45);
+  border-color: color-mix(in srgb, var(--edge) 70%, transparent) !important;
+}
+
+[data-testid="stCaptionContainer"] p { color: var(--muted) !important; }
+
+.stButton button {
+  background: color-mix(in srgb, #14b8a6 22%, transparent);
+  border: 1px solid color-mix(in srgb, #2dd4bf 40%, transparent);
+  color: #99f6e4;
+  font-weight: 600;
+}
+
+.stButton button:hover {
+  border-color: var(--goa-yellow);
+  color: var(--goa-yellow);
+}
+
+/* A step in the case progression, read back from the graph. */
+.ft-step {
+  display: grid;
+  grid-template-columns: 2.2rem 8.5rem 1fr;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: baseline;
+}
+
+.ft-step .n { font-family: var(--mono); font-size: 0.72rem; color: var(--faint); }
+
+.ft-step .k {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--goa-yellow);
+}
+
+.ft-step .d { font-size: 0.88rem; color: var(--goa-cream); overflow-wrap: anywhere; }
+
+.ft-action {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.55rem;
+  background: rgba(4, 23, 15, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 0.45rem;
+}
+
+.ft-action .a { font-family: var(--mono); font-size: 0.78rem; color: var(--goa-cream); font-weight: 700; }
+
+.ft-action .r {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  margin-left: 0.4rem;
+}
+
+.ft-action .r.auto { background: rgba(5, 150, 105, 0.3); color: #a7f3d0; }
+.ft-action .r.L1 { background: rgba(245, 217, 20, 0.18); color: var(--goa-yellow); }
+.ft-action .r.L2 { background: var(--goa-pink); color: var(--goa-yellow); }
+
+.ft-action .h { font-size: 0.72rem; color: var(--faint); margin-left: 0.35rem; }
+.ft-action .w { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+/* The case pack: every exam case as a chip, like the playground's suggested questions. */
+.ft-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.ft-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #34d399 30%, transparent);
+  background: rgba(4, 23, 15, 0.5);
+  color: #d1fae5 !important;
+  text-decoration: none !important;
+  font-size: 0.74rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.ft-chip:hover { border-color: var(--goa-yellow); color: var(--goa-yellow) !important; }
+
+.ft-chip i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--faint);
+}
+
+.ft-chip::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #34d399;
+}
+
+.ft-chip.fraud::before { background: var(--goa-pink); }
+.ft-chip.uncertain::before { background: var(--goa-yellow); }
+
+.ft-chip.active {
+  border-color: color-mix(in srgb, var(--goa-yellow) 60%, transparent);
+  background: color-mix(in srgb, var(--goa-yellow) 12%, transparent);
+  color: var(--goa-yellow) !important;
+}
+
+.ft-legend {
+  margin-top: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}

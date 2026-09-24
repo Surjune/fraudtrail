@@ -192,7 +192,12 @@ uv run streamlit run app/dashboard.py
 Every case is read back out of the graph rather than from the answer files, in five tabs: how
 it progressed step by step, the evidence it rests on, how uncertain the agent was and what it
 asked for, what it recommends before and after that evidence, and the report when policy calls
-for one. `?case=HHG-014` opens a case directly, so one can be shared as a link.
+for one. `?case=HHG-014` opens a case directly, so one can be shared as a link. The case pack
+beside it lists all twenty, marked by verdict.
+
+It wears the Hacker House Goa 2026 theme: the event poster's forest green, yellow and pink,
+Bodoni display type, and the Goa beach illustration behind the panels. The palette lives in
+`.streamlit/config.toml` and the rest in `app/theme.css`.
 
 The **approval queue** collects everything across the twenty cases that a person must sign
 off: eight actions, six at L1 and two at L2.

@@ -1,0 +1,21 @@
+# The Hacker House Goa 2026 palette, from the event poster: deep forest green ground,
+# bright yellow display type, hot pink accent, cream text. app/theme.css carries the rest.
+[theme]
+base = "dark"
+primaryColor = "#f5d914"
+backgroundColor = "#0b4a2f"
+secondaryBackgroundColor = "#08351f"
+textColor = "#f7f3e3"
+linkColor = "#f5d914"
+borderColor = "#1c6b44"
+
+[server]
+# Serves app/static/, which holds the backdrop illustration.
+enableStaticServing = true
+headless = true
+
+[client]
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false

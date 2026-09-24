@@ -9,20 +9,22 @@ Four things the round asks to be visible are each given their own place: how the
 progressed, what evidence it rests on, how certain the agent is, and what it recommends
 with the approval each action needs.
 
+Dressed in the Hacker House Goa 2026 theme; the styles are in app/theme.css.
+
 Run with:  uv run streamlit run app/dashboard.py
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from html import escape
 from pathlib import Path
 from typing import Any
 
 import streamlit as st
 
-from fraudtrail.answer.schema import Answer
-from fraudtrail.config import load_settings
+from fraudtrail.answer.schema import ActionItem, Answer
+from fraudtrail.config import Settings, load_settings
 from fraudtrail.graph.client import GraphClient
 from fraudtrail.graph.memory import GraphMemory
 from fraudtrail.investigate import constants as ic
@@ -31,6 +33,7 @@ from fraudtrail.wording import counted
 
 REPO = Path(__file__).resolve().parent.parent
 CASES_DIR = REPO / "cases"
+THEME_CSS = Path(__file__).resolve().parent / "theme.css"
 
 # The exam window, for the ring search.
 RING_FROM = "2016-11-01 00:00:00"
@@ -50,15 +53,31 @@ RING_MIN_ANONYMOUS_SHARE = 0.5
 MAX_RINGS_SHOWN = 10
 MAX_RING_CARDS_SHOWN = 40
 
+# How many connected cards and device profiles the evidence tab lists before trimming.
+MAX_CONNECTED_SHOWN = 12
+MAX_PROFILES_SHOWN = 3
+
 ROUTE_HELP = {
     Route.AUTO: "the agent may do this without asking",
     Route.L1: "a fraud analyst must approve",
     Route.L2: "a fraud manager must approve",
 }
 
-VERDICT_COLOUR = {"fraud": "#b3261e", "legitimate": "#146c2e", "uncertain": "#8a6100"}
-
+# ?view= values, and the tab each opens.
 VIEWS = ["Case", "Queue", "Rings"]
+VIEW_LABELS = {"Case": "Case Investigation", "Queue": "Approval Queue", "Rings": "Ring Finder"}
+
+# Trusted markup, written here rather than escaped: the entity is the multiplication sign.
+EVENT_HTML = "TigerGraph &times; HH Goa"
+TASK = "Agentic fraud investigation"
+
+# A magnifier over a card: the mark beside the name, drawn inline so nothing is fetched.
+MARK = (
+    "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' "
+    "stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+    "<rect x='2' y='5' width='15' height='11' rx='2'/><path d='M2 9h15'/>"
+    "<circle cx='17.5' cy='16.5' r='3.5'/><path d='m20 19 2 2'/></svg>"
+)
 
 
 @st.cache_resource
@@ -137,27 +156,109 @@ def md(text: str) -> str:
     return text.replace("$", r"\$")
 
 
-def verdict_badge(answer: Answer) -> str:
-    colour = VERDICT_COLOUR.get(answer.case.verdict.value, "#444")
-    return (
-        f"<span style='background:{colour};color:#fff;padding:2px 10px;"
-        f"border-radius:10px;font-weight:600'>{answer.case.verdict.value.upper()}</span>"
+def label(text: str) -> None:
+    """A section label in the event's wide-tracked mono, like the playground's TRY ASKING."""
+    st.html(f"<div class='ft-label'>{escape(text)}</div>")
+
+
+def apply_theme() -> None:
+    st.html(f"<style>{THEME_CSS.read_text(encoding='utf-8')}</style>")
+
+
+def show_masthead(settings: Settings, answers: dict[str, Answer]) -> None:
+    in_graph = sum(1 for a in answers.values() if a.case.written_to_graph)
+    st.html(
+        "<header class='ft-header'>"
+        f"<div class='ft-brand'>{MARK}<h1 class='ft-title'>FRAUDTRAIL</h1>"
+        "<span class='ft-pill'>HH Goa 2026</span></div>"
+        "<div class='goa-wordmark' aria-hidden='true'>"
+        "<span>HACKER</span><span class='goa-chip'>गोवा</span><span>HOUSE</span></div>"
+        "<div class='ft-status'>"
+        f"<span class='ft-badge'>graph {escape(settings.tigergraph.graph)}</span>"
+        f"<span class='ft-badge'>{counted(len(answers), 'case')}</span>"
+        f"<span class='ft-badge'>{in_graph} of {len(answers)} in the graph</span>"
+        "</div></header>"
     )
 
 
-def show_header(answer: Answer) -> None:
-    st.markdown(
-        f"### {answer.case_id} &nbsp; {verdict_badge(answer)}",
-        unsafe_allow_html=True,
+def show_navigation() -> str:
+    # ?view=Queue or ?case=HHG-014 opens that view directly, so a case can be shared as a link.
+    requested = st.query_params.get("view", VIEWS[0])
+    nav, event = st.columns([5, 3])
+    with nav, st.container(key="nav"):
+        view = st.radio(
+            "View",
+            VIEWS,
+            index=VIEWS.index(requested) if requested in VIEWS else 0,
+            horizontal=True,
+            format_func=lambda v: VIEW_LABELS[v],
+            label_visibility="collapsed",
+        )
+    with event:
+        st.html(
+            f"<div class='ft-event'><span class='ft-team'>{EVENT_HTML}</span> | "
+            f"<span class='ft-dates'>{escape(TASK)}</span></div>"
+        )
+    return str(view)
+
+
+def show_case_header(answer: Answer) -> None:
+    verdict = answer.case.verdict.value
+    pattern = answer.case.pattern.value.replace("_", " ")
+    st.html(
+        f"<div><span class='ft-case-id'>{escape(answer.case_id)}</span>"
+        f"<span class='ft-verdict {escape(verdict)}'>{escape(verdict)}</span>"
+        f"<span class='ft-pattern'>{escape(pattern)}</span></div>"
     )
+    st.write(md(answer.case.summary))
     left, middle, right, far = st.columns(4)
     left.metric("Fraud probability", f"{answer.case.fraud_probability:.2f}")
     middle.metric("Exposure", money(answer.case.exposure_usd))
-    right.metric("Pattern", answer.case.pattern.value.replace("_", " "))
+    right.metric("Connected cards", len(answer.case.connected_card_ids))
     far.metric("Evidence queries", answer.tool_calls)
-    st.write(md(answer.case.summary))
+    written = "yes" if answer.case.written_to_graph else "no"
+    st.html(
+        "<div class='ft-strip'>"
+        f"<div><span>Written to graph</span><b>{written}</b></div>"
+        f"<div><span>Latency</span><b>{answer.latency_s:.2f}s</b></div>"
+        f"<div><span>Model tokens</span><b>{answer.tokens:,}</b></div>"
+        f"<div><span>Evidence requests</span><b>{len(answer.evidence_requests)}</b></div>"
+        f"<div><span>Report</span><b>{'filed' if answer.sar.file else 'none'}</b></div>"
+        "</div>"
+    )
     if answer.case.pattern_description:
         st.info(md(f"**Undocumented pattern.** {answer.case.pattern_description}"))
+
+
+def show_case_pack(answers: dict[str, Answer], current: str) -> None:
+    """Every exam case as a link, like the playground's suggested questions."""
+    label("Case pack")
+    rows = []
+    for case_id, answer in answers.items():
+        verdict = answer.case.verdict.value
+        active = " active" if case_id == current else ""
+        rows.append(
+            f"<a class='ft-chip {escape(verdict)}{active}' href='?case={escape(case_id)}'>"
+            f"<span>{escape(case_id)}</span><i>{answer.case.fraud_probability:.2f}</i></a>"
+        )
+    fraud = sum(1 for a in answers.values() if a.case.verdict.value == "fraud")
+    reports = sum(1 for a in answers.values() if a.sar.file)
+    st.html(
+        f"<div class='ft-chips'>{''.join(rows)}</div>"
+        f"<div class='ft-legend'>{fraud} fraud · {len(answers) - fraud} legitimate · "
+        f"{counted(reports, 'report')}</div>"
+    )
+
+
+def action_card(item: ActionItem) -> str:
+    route = item.route.value
+    return (
+        "<div class='ft-action'>"
+        f"<span class='a'>{escape(item.action.value)}</span>"
+        f"<span class='r {escape(route)}'>{escape(route)}</span>"
+        f"<span class='h'>{escape(ROUTE_HELP.get(item.route, ''))}</span>"
+        f"<div class='w'>{escape(item.reason)}</div></div>"
+    )
 
 
 def show_actions(answer: Answer) -> None:
@@ -167,22 +268,12 @@ def show_actions(answer: Answer) -> None:
         "Each action carries the approval its route requires."
     )
     before, after = st.columns(2)
-    before.markdown("**Before more evidence was requested**")
-    for item in answer.next_best_actions.initial:
-        before.markdown(
-            f"- `{item.action.value}` — **{item.route.value}** "
-            f"<span style='color:#666'>({ROUTE_HELP.get(item.route, '')})</span><br>"
-            f"<span style='color:#666;font-size:0.9em'>{md(item.reason)}</span>",
-            unsafe_allow_html=True,
-        )
-    after.markdown("**After the response came back**")
-    for item in answer.next_best_actions.final:
-        after.markdown(
-            f"- `{item.action.value}` — **{item.route.value}** "
-            f"<span style='color:#666'>({ROUTE_HELP.get(item.route, '')})</span><br>"
-            f"<span style='color:#666;font-size:0.9em'>{md(item.reason)}</span>",
-            unsafe_allow_html=True,
-        )
+    with before:
+        label("Before more evidence was requested")
+        st.html("".join(action_card(i) for i in answer.next_best_actions.initial))
+    with after:
+        label("After the response came back")
+        st.html("".join(action_card(i) for i in answer.next_best_actions.final))
     st.markdown(md(f"**What changed:** {answer.next_best_actions.what_changed}"))
 
 
@@ -215,15 +306,15 @@ def show_evidence(answer: Answer) -> None:
         for item in answer.case.evidence
     ]
     st.dataframe(rows, use_container_width=True, hide_index=True)
-    if answer.case.connected_card_ids:
+    connected = answer.case.connected_card_ids
+    if connected:
         st.markdown(
-            f"**Connected cards ({len(answer.case.connected_card_ids)}):** "
-            + ", ".join(f"`{c}`" for c in answer.case.connected_card_ids[:12])
-            + ("…" if len(answer.case.connected_card_ids) > 12 else "")
+            f"**Connected cards ({len(connected)}):** "
+            + ", ".join(f"`{c}`" for c in connected[:MAX_CONNECTED_SHOWN])
+            + ("…" if len(connected) > MAX_CONNECTED_SHOWN else "")
         )
-    if answer.case.connected_device_profiles:
-        for profile in answer.case.connected_device_profiles[:3]:
-            st.code(profile, language=None)
+    for profile in answer.case.connected_device_profiles[:MAX_PROFILES_SHOWN]:
+        st.code(profile, language=None)
     if answer.case.similar_prior_cases:
         st.markdown(
             "**Prior cases retrieved from memory:** "
@@ -240,13 +331,16 @@ def show_progression(case_id: str) -> None:
         st.warning("This case is not in the graph yet. Run scripts/run_agent.py.")
         return
     ordered = sorted(events, key=lambda e: int(e.get("attributes", {}).get("step", 0)))
+    steps = []
     for event in ordered:
         a = event.get("attributes", {})
-        st.markdown(
-            f"**{a.get('step')}. {str(a.get('kind', '')).replace('_', ' ')}** — "
-            f"<span style='color:#555'>{md(str(a.get('detail', '')))}</span>",
-            unsafe_allow_html=True,
+        steps.append(
+            "<div class='ft-step'>"
+            f"<span class='n'>{escape(str(a.get('step', '')))}</span>"
+            f"<span class='k'>{escape(str(a.get('kind', '')).replace('_', ' '))}</span>"
+            f"<span class='d'>{escape(str(a.get('detail', '')))}</span></div>"
         )
+    st.html("".join(steps))
 
 
 def show_report(answer: Answer) -> None:
@@ -262,44 +356,42 @@ def show_report(answer: Answer) -> None:
     st.write(md(answer.sar.narrative))
 
 
-def show_rings() -> None:
-    st.subheader("Rings in the exam window")
-    st.caption(
-        "Label propagation over cards that share a device profile, run in the graph. "
-        "Nothing here is told what to look for. A device takes part only if it could be a "
-        "ring: a fully specified profile, on several cards but not hundreds, new on nearly "
-        "every account it touches, and behind an anonymous proxy."
-    )
-    min_cards = st.slider("Smallest ring to show", 3, 25, 8)
-    if not st.button("Run the graph algorithm"):
-        return
-    rings = find_rings(min_cards)
-    st.write(f"{counted(len(rings), 'ring')} of {min_cards} or more cards")
-    for index, (cards, devices) in enumerate(rings[:MAX_RINGS_SHOWN]):
-        linked_by = devices[0] if len(devices) == 1 else counted(len(devices), "device profile")
-        with st.expander(
-            f"{counted(len(cards), 'card')} linked by {linked_by}", expanded=not index
-        ):
-            st.write(", ".join(f"`{c}`" for c in cards[:MAX_RING_CARDS_SHOWN]))
-            for device in devices:
-                st.code(device, language=None)
+def show_case_view(answers: dict[str, Answer]) -> None:
+    case_ids = list(answers)
+    requested = st.query_params.get("case", "")
+    main, side = st.columns([3, 1])
+    with side, st.container(key="panel_pack"):
+        case_id = str(
+            st.selectbox(
+                "Case",
+                case_ids,
+                index=case_ids.index(requested) if requested in case_ids else 0,
+                format_func=lambda c: f"{c} — {answers[c].case.verdict.value}",
+            )
+        )
+        st.query_params["case"] = case_id
+        show_case_pack(answers, case_id)
+    answer = answers[case_id]
+    with main:
+        with st.container(key="panel_case"):
+            show_case_header(answer)
+        with st.container(key="panel_tabs"):
+            tabs = st.tabs(["Progression", "Evidence", "Uncertainty", "Actions", "Report"])
+            with tabs[0]:
+                show_progression(answer.case.graph_case_id or f"CASE-{case_id}")
+            with tabs[1]:
+                show_evidence(answer)
+            with tabs[2]:
+                show_uncertainty(answer)
+            with tabs[3]:
+                show_actions(answer)
+            with tabs[4]:
+                show_report(answer)
 
 
-def main() -> None:
-    st.set_page_config(page_title="FraudTrail", page_icon="🔎", layout="wide")
-    settings = load_settings()
-    answers = load_answers()
-
-    st.sidebar.title("FraudTrail")
-    st.sidebar.caption(f"graph: {settings.tigergraph.graph}")
-    # ?view=Queue or ?case=HHG-014 opens that view directly, so a case can be shared as a link.
-    requested_view = st.query_params.get("view", VIEWS[0])
-    view = st.sidebar.radio(
-        "View", VIEWS, index=VIEWS.index(requested_view) if requested_view in VIEWS else 0
-    )
-
-    if view == "Queue":
-        st.title("Approval queue")
+def show_queue(answers: dict[str, Answer]) -> None:
+    with st.container(key="panel_queue"):
+        st.subheader("Approval queue")
         st.caption("Everything the agent recommends that a human must approve before it happens.")
         rows = [
             {
@@ -317,40 +409,50 @@ def main() -> None:
         rows.sort(key=lambda r: (r["route"], r["case"]), reverse=True)
         st.dataframe(rows, use_container_width=True, hide_index=True)
         st.caption(f"{len(rows)} actions awaiting approval across {len(answers)} cases.")
-        return
 
-    if view == "Rings":
-        st.title("Shared-device rings")
-        show_rings()
-        return
 
-    case_ids = list(answers)
-    requested_case = st.query_params.get("case", "")
-    case_id = st.sidebar.selectbox(
-        "Case",
-        case_ids,
-        index=case_ids.index(requested_case) if requested_case in case_ids else 0,
-        format_func=lambda c: f"{c} — {answers[c].case.verdict.value}",
+def show_rings() -> None:
+    with st.container(key="panel_rings"):
+        st.subheader("Rings in the exam window")
+        st.caption(
+            "Label propagation over cards that share a device profile, run in the graph. "
+            "Nothing here is told what to look for. A device takes part only if it could be a "
+            "ring: a fully specified profile, on several cards but not hundreds, new on nearly "
+            "every account it touches, and behind an anonymous proxy."
+        )
+        min_cards = st.slider("Smallest ring to show", 3, 25, 8)
+        if not st.button("Run the graph algorithm"):
+            return
+        rings = find_rings(min_cards)
+        st.write(f"{counted(len(rings), 'ring')} of {min_cards} or more cards")
+        for index, (cards, devices) in enumerate(rings[:MAX_RINGS_SHOWN]):
+            linked_by = devices[0] if len(devices) == 1 else counted(len(devices), "device profile")
+            with st.expander(
+                f"{counted(len(cards), 'card')} linked by {linked_by}", expanded=not index
+            ):
+                st.write(", ".join(f"`{c}`" for c in cards[:MAX_RING_CARDS_SHOWN]))
+                for device in devices:
+                    st.code(device, language=None)
+
+
+def main() -> None:
+    st.set_page_config(
+        page_title="FraudTrail · HH Goa 2026",
+        page_icon=":material/policy:",
+        layout="wide",
+        initial_sidebar_state="collapsed",
     )
-    answer = answers[case_id]
-    st.sidebar.metric("Written to the graph", "yes" if answer.case.written_to_graph else "no")
-    st.sidebar.metric("Latency", f"{answer.latency_s:.2f}s")
-    st.sidebar.metric("Model tokens", f"{answer.tokens:,}")
-
-    st.title("Fraud investigation")
-    show_header(answer)
-    tabs = st.tabs(["Progression", "Evidence", "Uncertainty", "Actions", "Report"])
-    with tabs[0]:
-        show_progression(answer.case.graph_case_id or f"CASE-{case_id}")
-    with tabs[1]:
-        show_evidence(answer)
-    with tabs[2]:
-        show_uncertainty(answer)
-    with tabs[3]:
-        show_actions(answer)
-    with tabs[4]:
-        show_report(answer)
-    st.caption(f"Rendered {datetime.now():%Y-%m-%d %H:%M}")
+    apply_theme()
+    settings = load_settings()
+    answers = load_answers()
+    show_masthead(settings, answers)
+    view = show_navigation()
+    if view == "Queue":
+        show_queue(answers)
+    elif view == "Rings":
+        show_rings()
+    else:
+        show_case_view(answers)
 
 
 main()
