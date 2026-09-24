@@ -23,6 +23,7 @@ from fraudtrail.investigate.detectors import (
     recurring_charges,
     sublimit_burst,
 )
+from fraudtrail.wording import counted, was_or_were
 
 # Phrases the bank's analysts used when they cleared an alert (docs/data_findings.md).
 CLEARED_TRAVEL = "confirmed travel"
@@ -85,8 +86,9 @@ def _memory_signals(evidence: CaseEvidence) -> tuple[list[Signal], dict[str, int
                 name="prior_confirmed_fraud",
                 family="memory",
                 claim=(
-                    f"{len(confirmed)} closed case(s) on this card or its owner's cards were "
-                    f"confirmed fraud, most often {dominant.replace('_', ' ')}"
+                    f"{counted(len(confirmed), 'closed case')} on this card or its owner's "
+                    f"cards {was_or_were(len(confirmed))} confirmed fraud, most often "
+                    f"{dominant.replace('_', ' ')}"
                 ),
                 ref="query:prior_cases(card_id)",
                 entity_ids=tuple(confirmed[:5]),
@@ -98,8 +100,9 @@ def _memory_signals(evidence: CaseEvidence) -> tuple[list[Signal], dict[str, int
                 name="prior_cleared_travel",
                 family="memory",
                 claim=(
-                    f"{len(cleared_travel)} earlier alert(s) on this card were cleared when the "
-                    f"cardholder confirmed travel to the flagged region"
+                    f"{counted(len(cleared_travel), 'earlier alert')} on this card "
+                    f"{was_or_were(len(cleared_travel))} cleared when the cardholder confirmed "
+                    f"travel to the flagged region"
                 ),
                 ref="query:prior_cases(card_id)",
                 entity_ids=tuple(cleared_travel[:5]),
@@ -111,8 +114,9 @@ def _memory_signals(evidence: CaseEvidence) -> tuple[list[Signal], dict[str, int
                 name="prior_cleared_new_phone",
                 family="memory",
                 claim=(
-                    f"{len(cleared_new_phone)} earlier alert(s) on this card were cleared when the "
-                    f"cardholder confirmed a purchase from a new phone"
+                    f"{counted(len(cleared_new_phone), 'earlier alert')} on this card "
+                    f"{was_or_were(len(cleared_new_phone))} cleared when the cardholder "
+                    f"confirmed a purchase from a new phone"
                 ),
                 ref="query:prior_cases(card_id)",
                 entity_ids=tuple(cleared_new_phone[:5]),
@@ -342,8 +346,9 @@ def detect(evidence: CaseEvidence, trigger: Trigger) -> Detection:
                     name="ring_prior_fraud",
                     family="ring",
                     claim=(
-                        f"{len(ring.prior_fraud_cases)} closed case(s) confirmed as fraud involve "
-                        f"the same device profile"
+                        f"The same device profile appears in "
+                        f"{counted(len(ring.prior_fraud_cases), 'closed case')} confirmed as "
+                        f"fraud"
                     ),
                     ref="query:device_reach(profile_id)",
                     entity_ids=tuple(ring.prior_fraud_cases[:5]),

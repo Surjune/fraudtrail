@@ -22,6 +22,7 @@ from fraudtrail.policy.actions import (
     Route,
     route_for,
 )
+from fraudtrail.wording import counted
 
 
 @dataclass(frozen=True)
@@ -337,7 +338,7 @@ def _apply_cross_cutting(plan: _Plan, s: Situation, request: Action | None) -> N
     if s.connected_cards > 0 and not_cleared and (_plan_blocks(plan) or s.linked_to_other_fraud):
         plan.add(
             Action.MONITOR_CONNECTED_CARDS,
-            f"{s.connected_cards} connected card(s) share the compromise",
+            f"the compromise reaches {counted(s.connected_cards, 'connected card')}",
         )
 
     needs_case = (

@@ -35,6 +35,11 @@ ID_TOKEN = re.compile(r"\b(?:[A-Z]{2,}-\d+|C\d+-K\d+|C\d{3,}|\d{5,})\b")
 AMOUNT = re.compile(r"\$\s?\d[\d,]*(?:\.\d+)?")
 DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 
+# Words that give a reason. The evidence says what happened and rarely why; a model that
+# supplies the why ("scored 0.57 due to a proxy", "reviewed because of the ring") has
+# invented a fact that no identifier, amount or date check can see.
+REASON = re.compile(r"\b(?:because|due to|owing to|as a result of)\b", re.IGNORECASE)
+
 # A model asked for plain text sometimes wraps it in a code fence anyway.
 FENCE = re.compile(r"^```[a-z]*\n|\n```$")
 
@@ -58,17 +63,18 @@ SYSTEM = (
     "2. Never remove a fact. Every identifier, amount and date survives the rewrite.\n"
     "3. Never soften or strengthen a judgement. If the passage says the evidence is "
     "mixed, so does your answer.\n"
-    "4. Copy every identifier, amount and date exactly as written, character for "
+    "4. Never add a reason. If the passage does not say why something happened or why "
+    "someone acted, neither does your answer: two facts side by side do not become 'because'.\n"
+    "5. Copy every identifier, amount and date exactly as written, character for "
     "character. Dates stay in YYYY-MM-DD form: 2016-11-15 is not November 15, 2016. "
     "Amounts keep their currency symbol and decimals.\n"
-    "5. Do rewrite. The passage is not already good English: fix the machine artefacts "
-    "such as 'transaction(s)', 'channel(s)' and 'product code(s)', make every sentence "
-    "read naturally, and order the facts so the sequence of events is clear. Returning "
-    "the passage unchanged is a failure.\n"
-    "6. Obey the sentence count you are given exactly. It is a hard requirement, not a "
+    "6. Do rewrite. The passage is joined-up template sentences, not finished prose: "
+    "make every sentence read naturally, vary the openings, and order the facts so the "
+    "sequence of events is clear. Returning the passage unchanged is a failure.\n"
+    "7. Obey the sentence count you are given exactly. It is a hard requirement, not a "
     "suggestion: an answer outside that range is rejected, and compressing the facts "
     "into fewer, longer sentences is the most common way to fail it.\n"
-    "7. Write plain declarative prose. No headings, no bullet points, no code fences, no "
+    "8. Write plain declarative prose. No headings, no bullet points, no code fences, no "
     "preamble such as 'Here is'. Return only the rewritten passage."
 )
 
@@ -93,6 +99,11 @@ def _unsupported(source: str, candidate: str) -> str:
         return f"amounts not in the evidence: {', '.join(invented_amounts)}"
     if invented_dates:
         return f"dates not in the evidence: {', '.join(invented_dates)}"
+    if len(REASON.findall(candidate)) > len(REASON.findall(source)):
+        return (
+            "it gives a reason the evidence does not ('because', 'due to'); "
+            "state the facts side by side instead"
+        )
     missing_ids = sorted(source_ids - ids)
     if missing_ids:
         return f"identifiers dropped from the evidence: {', '.join(missing_ids)}"
@@ -169,6 +180,8 @@ class LlmNarrator:
 
     def _rewrite(self, source: str, prompt: str, low: int, high: int) -> str:
         """One attempt, then one more with the problem quoted back, then the template."""
+        # A reason left over from an earlier passage would be quoted back against this one.
+        self._last_reason = ""
         candidate = self._attempt(source, prompt, low, high)
         if candidate is not None:
             return candidate

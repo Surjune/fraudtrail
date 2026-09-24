@@ -113,6 +113,34 @@ def test_invented_date_is_rejected() -> None:
     assert n.rejected == 2
 
 
+def test_an_invented_reason_is_rejected() -> None:
+    n = narrator(
+        SOURCE_NARRATIVE.replace(
+            "The cardholder was asked", "The case was opened because the cardholder was asked"
+        )
+    )
+    assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
+    assert n.rejected == 2
+
+
+def test_a_reason_the_evidence_gives_may_be_kept() -> None:
+    source = SOURCE_SUMMARY + " The alert was raised because the score passed 0.70."
+    rewritten = (
+        "The bank's model scored a $74.96 online card-not-present purchase on card "
+        "C13487-K1 at 0.87, and the alert was raised because the score passed 0.70. "
+        "Twenty cards share that device profile in the thirty days before the alert. "
+        "The case is assessed as fraud at 0.91 with 1,248.30 USD of exposure."
+    )
+
+    class Fallback(StubFallback):
+        def summary(self, n: Narration) -> str:
+            return source
+
+    n = LlmNarrator(StubClient(rewritten), fallback=cast(Narrator, Fallback()))
+    assert n.summary(NARRATION) == rewritten
+    assert n.rejected == 0
+
+
 def test_dropped_identifier_is_rejected() -> None:
     n = narrator(
         SOURCE_NARRATIVE.replace(
@@ -173,6 +201,30 @@ def test_a_busy_model_is_tried_again_on_the_next_case() -> None:
     for _ in range(3):
         assert n.summary(NARRATION) == SOURCE_SUMMARY
     # Every case still reaches the model, where a spent quota would have stopped after two.
+    assert client.calls == 3
+
+
+class RejectedThenUnreachable:
+    """Gives one unusable answer, then cannot be reached at all."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def complete(self, system: str, prompt: str) -> Completion:
+        self.calls += 1
+        if self.calls <= 2:
+            return Completion("Too short.", 10)
+        raise LlmError("HTTP 503: the model is overloaded")
+
+
+def test_an_old_rejection_is_not_quoted_against_a_new_passage() -> None:
+    client = RejectedThenUnreachable()
+    n = LlmNarrator(client, fallback=cast(Narrator, StubFallback()))
+    assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
+    assert client.calls == 2
+    # The model is now unreachable. Without a fresh reason there is nothing to correct,
+    # so the summary is asked for once, not retried with the narrative's rejection.
+    assert n.summary(NARRATION) == SOURCE_SUMMARY
     assert client.calls == 3
 
 

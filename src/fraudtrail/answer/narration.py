@@ -16,6 +16,7 @@ from fraudtrail.evidence.models import CaseEvidence
 from fraudtrail.investigate.detectors import Detection
 from fraudtrail.investigate.scoring import Assessment
 from fraudtrail.policy.engine import Decision
+from fraudtrail.wording import counted, noun, was_or_were
 
 # The summary is for an analyst: the format asks for two to six sentences.
 MAX_SUMMARY_CLAIMS = 3
@@ -99,21 +100,25 @@ class TemplateNarrator:
         flagged = n.evidence.flagged
         affected = n.detection.affected
         first, last = n.dates
-        channels = ", ".join(sorted({t.channel.replace("_", "-") for t in affected})) or (
+        channels = sorted({t.channel.replace("_", "-") for t in affected}) or [
             flagged.channel.replace("_", "-")
-        )
-        products = ", ".join(sorted({t.product_cd for t in affected})) or flagged.product_cd
+        ]
+        products = sorted({t.product_cd for t in affected}) or [flagged.product_cd]
         regions = sorted({t.region for t in affected if t.region})
         where = (
-            f"billing region(s) {', '.join(regions)}" if regions else "no recorded billing region"
+            f"{noun(len(regions), 'billing region')} {', '.join(regions)}"
+            if regions
+            else "no recorded billing region"
         )
 
         sentences = [
             f"Between {first} and {last}, card {n.case.card_id} belonging to customer "
-            f"{n.case.customer_id} was used for {len(affected)} transaction(s) totalling "
-            f"${n.detection.exposure_usd:,.2f} that the bank believes were unauthorised",
-            f"The activity ran through {channels} channel(s) under product code(s) {products}, "
-            f"in {where}",
+            f"{n.case.customer_id} was used for {counted(len(affected), 'transaction')} "
+            f"totalling ${n.detection.exposure_usd:,.2f} that the bank believes "
+            f"{was_or_were(len(affected))} unauthorised",
+            f"The activity ran through the {', '.join(channels)} "
+            f"{noun(len(channels), 'channel')} under {noun(len(products), 'product code')} "
+            f"{', '.join(products)}, in {where}",
         ]
         sentences.extend(_claims(n, MAX_NARRATIVE_CLAIMS))
         if n.detection.pattern is Pattern.UNDOCUMENTED and n.detection.pattern_description:
@@ -121,8 +126,8 @@ class TemplateNarrator:
         if n.detection.connected_cards:
             sentences.append(
                 f"The same device profile links this activity to "
-                f"{len(n.detection.connected_cards)} other card(s), which indicates one actor "
-                f"operating across several cardholders"
+                f"{counted(len(n.detection.connected_cards), 'other card')}, which indicates "
+                f"one actor operating across several cardholders"
             )
         response = _response_sentence(n)
         if response:
