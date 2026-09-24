@@ -20,7 +20,8 @@ from datetime import datetime
 
 from fraudtrail.answer.build import InvestigationResult
 from fraudtrail.answer.schema import Answer
-from fraudtrail.graph.client import GraphClient, GraphError
+from fraudtrail.graph.client import GraphError, QueryRunner
+from fraudtrail.graph.mcp_client import McpError
 
 log = logging.getLogger(__name__)
 
@@ -153,7 +154,7 @@ def _events(result: InvestigationResult, answer: Answer) -> list[CaseEvent]:
 class GraphMemory:
     """Stores finished cases in the graph through the installed write queries."""
 
-    def __init__(self, client: GraphClient) -> None:
+    def __init__(self, client: QueryRunner) -> None:
         self._client = client
 
     def write(self, result: InvestigationResult, answer: Answer) -> bool:
@@ -196,7 +197,7 @@ class GraphMemory:
                         "at": written_at,
                     },
                 )
-        except GraphError as exc:
+        except (GraphError, McpError) as exc:
             # A case that failed to store is reported as unwritten rather than claimed.
             log.warning("%s was not written to the graph: %s", case_id, exc)
             return False

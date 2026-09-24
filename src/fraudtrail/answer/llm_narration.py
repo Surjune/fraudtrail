@@ -37,9 +37,14 @@ DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 # A model asked for plain text sometimes wraps it in a code fence anyway.
 FENCE = re.compile(r"^```[a-z]*\n|\n```$")
 
-# Two failures in a row mean the key, the quota or the network is gone rather than one
-# request being unlucky, and every further attempt pays the full retry backoff.
+# Two failures in a row mean the key or the quota is gone rather than one request being
+# unlucky, and every further attempt would pay the full retry backoff for nothing.
 FAILURES_BEFORE_GIVING_UP = 2
+
+# What does not come back inside a run: a spent daily quota, a rejected key. A busy model
+# answering 503 is a different thing, and a run that gave up on it lost sixteen of twenty
+# rewrites to a minute of load.
+FATAL_MARKERS = ("429", "quota", "401", "403", "api key", "permission")
 
 SYSTEM = (
     "You write for a bank's fraud investigations team. The passage you are given was "
@@ -52,11 +57,17 @@ SYSTEM = (
     "2. Never remove a fact. Every identifier, amount and date survives the rewrite.\n"
     "3. Never soften or strengthen a judgement. If the passage says the evidence is "
     "mixed, so does your answer.\n"
-    "4. Do rewrite. The passage is not already good English: fix the machine artefacts "
-    "such as 'transaction(s)', 'channel(s)' and 'product code(s)', join the clipped "
-    "sentences into connected ones, and order the facts so the sequence of events is "
-    "clear. Returning the passage unchanged is a failure.\n"
-    "5. Write plain declarative prose. No headings, no bullet points, no code fences, no "
+    "4. Copy every identifier, amount and date exactly as written, character for "
+    "character. Dates stay in YYYY-MM-DD form: 2016-11-15 is not November 15, 2016. "
+    "Amounts keep their currency symbol and decimals.\n"
+    "5. Do rewrite. The passage is not already good English: fix the machine artefacts "
+    "such as 'transaction(s)', 'channel(s)' and 'product code(s)', make every sentence "
+    "read naturally, and order the facts so the sequence of events is clear. Returning "
+    "the passage unchanged is a failure.\n"
+    "6. Obey the sentence count you are given exactly. It is a hard requirement, not a "
+    "suggestion: an answer outside that range is rejected, and compressing the facts "
+    "into fewer, longer sentences is the most common way to fail it.\n"
+    "7. Write plain declarative prose. No headings, no bullet points, no code fences, no "
     "preamble such as 'Here is'. Return only the rewritten passage."
 )
 
@@ -102,6 +113,7 @@ class LlmNarrator:
         self.rejected = 0
         self._failures = 0
         self._given_up = False
+        self._last_reason = ""
 
     def summary(self, n: Narration) -> str:
         source = self._fallback.summary(n)
@@ -134,21 +146,37 @@ class LlmNarrator:
         return spent
 
     def _rewrite(self, source: str, prompt: str, low: int, high: int) -> str:
-        if self._given_up:
+        """One attempt, then one more with the problem quoted back, then the template."""
+        candidate = self._attempt(source, prompt, low, high)
+        if candidate is not None:
+            return candidate
+        if self._given_up or not self._last_reason:
             return source
+        correction = (
+            f"{prompt}\n\nYour previous answer was rejected: {self._last_reason}. "
+            f"Write it again, between {low} and {high} sentences, keeping every "
+            "identifier, amount and date exactly as the passage writes them."
+        )
+        retry = self._attempt(source, correction, low, high)
+        return retry if retry is not None else source
+
+    def _attempt(self, source: str, prompt: str, low: int, high: int) -> str | None:
+        if self._given_up:
+            return None
         try:
             completion = self._client.complete(SYSTEM, prompt)
         except LlmError as exc:
             self.rejected += 1
-            self._failures += 1
+            fatal = any(marker in str(exc).lower() for marker in FATAL_MARKERS)
+            self._failures = self._failures + 1 if fatal else 0
             if self._failures >= FAILURES_BEFORE_GIVING_UP:
                 self._given_up = True
                 # A daily quota does not come back inside one run, and each attempt costs
                 # the full backoff. Finish on templates instead of stalling every case.
-                log.warning("model unreachable twice; writing the rest from templates")
+                log.warning("model out of quota twice; writing the rest from templates")
             else:
                 log.warning("model unavailable, keeping the templated text: %s", exc)
-            return source
+            return None
         self._failures = 0
         self.calls += 1
         self.tokens += completion.tokens
@@ -163,6 +191,7 @@ class LlmNarrator:
             reason = _unsupported(source, candidate)
         if reason:
             self.rejected += 1
-            log.warning("keeping the templated text: %s", reason)
-            return source
+            self._last_reason = reason
+            log.warning("model answer rejected: %s", reason)
+            return None
         return candidate

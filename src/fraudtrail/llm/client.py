@@ -30,8 +30,10 @@ BACKOFF_FACTOR = 3.0
 RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 TIMEOUT_S = 60.0
 
-# The longest text asked for is a twelve-sentence narrative.
-MAX_OUTPUT_TOKENS = 900
+# The longest text asked for is a twelve-sentence narrative, but a reasoning model
+# spends output tokens thinking before it writes: one rewrite here used 2,153 of them and
+# returned a truncated fragment under a 900 budget. The ceiling covers both.
+MAX_OUTPUT_TOKENS = 4000
 
 # Determinism: the same evidence must produce the same case file on a re-run.
 TEMPERATURE = 0.0

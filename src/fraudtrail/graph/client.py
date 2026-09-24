@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from fraudtrail.config import Settings, TigerGraphSettings, load_settings
 
@@ -18,6 +18,16 @@ log = logging.getLogger(__name__)
 
 class GraphError(RuntimeError):
     """A TigerGraph call failed or returned something unusable."""
+
+
+class QueryRunner(Protocol):
+    """Whatever can run an installed query: REST directly, or MCP.
+
+    The evidence layer depends on this and nothing more, so the same investigation runs
+    over either transport without knowing which one it has.
+    """
+
+    def run_query(self, name: str, params: dict[str, Any] | None = None) -> list[Any]: ...
 
 
 # GSQL answers with HTTP 200 whatever happens, so failure is read from the text. A query

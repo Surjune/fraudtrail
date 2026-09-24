@@ -40,14 +40,38 @@ class StubClient:
     def __init__(self, reply: str, tokens: int = 100) -> None:
         self._reply = reply
         self.tokens = tokens
+        self.calls = 0
 
     def complete(self, system: str, prompt: str) -> Completion:
+        self.calls += 1
         return Completion(self._reply, self.tokens)
 
 
-class FailingClient:
+class CorrectingClient:
+    """Fails the first answer and gets it right when told what was wrong."""
+
+    def __init__(self, bad: str, good: str) -> None:
+        self._bad = bad
+        self._good = good
+        self.calls = 0
+        self.saw_reason = False
+
     def complete(self, system: str, prompt: str) -> Completion:
-        raise LlmError("rate limited")
+        self.calls += 1
+        if "was rejected" in prompt:
+            self.saw_reason = True
+            return Completion(self._good, 120)
+        return Completion(self._bad, 100)
+
+
+class FailingClient:
+    def __init__(self, error: str = "HTTP 429: quota exhausted") -> None:
+        self._error = error
+        self.calls = 0
+
+    def complete(self, system: str, prompt: str) -> Completion:
+        self.calls += 1
+        raise LlmError(self._error)
 
 
 def narrator(reply: str) -> LlmNarrator:
@@ -74,19 +98,19 @@ def test_faithful_rewrite_is_kept() -> None:
 def test_invented_amount_is_rejected() -> None:
     n = narrator(SOURCE_NARRATIVE.replace("$1,248.30 that", "$9,999.00 that"))
     assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
-    assert n.rejected == 1
+    assert n.rejected == 2
 
 
 def test_invented_identifier_is_rejected() -> None:
     n = narrator(SOURCE_NARRATIVE + " The activity also touched card C99999-K4.")
     assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
-    assert n.rejected == 1
+    assert n.rejected == 2
 
 
 def test_invented_date_is_rejected() -> None:
     n = narrator(SOURCE_NARRATIVE.replace("2016-11-14", "2016-10-01"))
     assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
-    assert n.rejected == 1
+    assert n.rejected == 2
 
 
 def test_dropped_identifier_is_rejected() -> None:
@@ -96,7 +120,7 @@ def test_dropped_identifier_is_rejected() -> None:
         )
     )
     assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
-    assert n.rejected == 1
+    assert n.rejected == 2
 
 
 def test_too_few_sentences_is_rejected() -> None:
@@ -106,7 +130,7 @@ def test_too_few_sentences_is_rejected() -> None:
         "which the cardholder denied, so the actions are block_card and create_case."
     )
     assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
-    assert n.rejected == 1
+    assert n.rejected == 2
 
 
 def test_code_fence_is_stripped() -> None:
@@ -134,9 +158,32 @@ def test_unreachable_model_falls_back_without_raising() -> None:
     assert n.rejected == 2
 
 
-def test_the_narrator_stops_calling_a_model_that_keeps_failing() -> None:
+def test_the_narrator_stops_calling_a_model_whose_quota_is_gone() -> None:
     n = LlmNarrator(FailingClient(), fallback=cast(Narrator, StubFallback()))
     for _ in range(5):
         assert n.summary(NARRATION) == SOURCE_SUMMARY
-    # Two failures are enough to give up; the three later calls never reach the client.
+    # Two quota failures are enough to give up; the later calls never reach the client.
     assert n.rejected == 2
+
+
+def test_a_busy_model_is_tried_again_on_the_next_case() -> None:
+    """A 503 is load, not a spent quota, and a run must not abandon the model over it."""
+    client = FailingClient("HTTP 503: the model is overloaded")
+    n = LlmNarrator(client, fallback=cast(Narrator, StubFallback()))
+    for _ in range(3):
+        assert n.summary(NARRATION) == SOURCE_SUMMARY
+    # Every case still reaches the model, where a spent quota would have stopped after two.
+    assert client.calls == 3
+
+
+def test_a_rejected_answer_is_asked_for_again_with_the_reason() -> None:
+    too_short = (
+        "Card C13487-K1 of customer C13487 saw 6 transactions totalling $1,248.30 "
+        "between 2016-11-14 and 2016-11-22, which the cardholder denied."
+    )
+    client = CorrectingClient(too_short, SOURCE_NARRATIVE)
+    n = LlmNarrator(client, fallback=cast(Narrator, StubFallback()))
+    assert n.sar_narrative(NARRATION) == SOURCE_NARRATIVE
+    assert client.calls == 2
+    assert client.saw_reason
+    assert n.rejected == 1

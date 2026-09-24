@@ -25,6 +25,7 @@ from fraudtrail.config import Settings, load_settings
 from fraudtrail.evidence.duckdb_provider import DuckDbProvider
 from fraudtrail.evidence.provider import EvidenceProvider
 from fraudtrail.evidence.tigergraph_provider import TigerGraphProvider
+from fraudtrail.graph.mcp_client import McpGraphClient
 from fraudtrail.graph.memory import GraphMemory
 from fraudtrail.investigate.runner import investigate
 from fraudtrail.llm.client import build_client
@@ -34,11 +35,15 @@ log = logging.getLogger("run_agent")
 REPO = Path(__file__).resolve().parent.parent
 
 
-def build_provider(settings: Settings, offline: bool) -> EvidenceProvider:
-    """TigerGraph is the runtime path; --offline runs the same investigation locally."""
+def build_provider(settings: Settings, offline: bool, mcp: bool) -> EvidenceProvider:
+    """TigerGraph is the runtime path: over REST, over MCP, or locally with --offline."""
     if offline:
         log.info("evidence from the local warehouse")
         return DuckDbProvider.open(settings.raw_dir, settings.processed_dir)
+    if mcp:
+        log.info("evidence from TigerGraph through the MCP server")
+        provider = TigerGraphProvider.from_env(settings)
+        return TigerGraphProvider(McpGraphClient(settings.tigergraph.graph), provider.embedder)
     log.info("evidence from TigerGraph at %s", settings.tigergraph.host)
     return TigerGraphProvider.from_env(settings)
 
@@ -58,6 +63,11 @@ def main() -> None:
     parser.add_argument("--only", default="", help="comma-separated case IDs")
     parser.add_argument("--out", type=Path, default=REPO / "cases")
     parser.add_argument(
+        "--mcp",
+        action="store_true",
+        help="reach the graph through the TigerGraph MCP server instead of REST",
+    )
+    parser.add_argument(
         "--offline",
         action="store_true",
         help="use the local warehouse instead of TigerGraph (no workspace needed)",
@@ -71,7 +81,7 @@ def main() -> None:
     if wanted:
         cases = tuple(case for case in cases if case.case_id in wanted)
 
-    provider = build_provider(settings, offline=args.offline)
+    provider = build_provider(settings, offline=args.offline, mcp=args.mcp)
     narrator = build_narrator(settings)
     # The graph provider already holds an authenticated client; an offline run has none,
     # so its cases stay local and say so in the answer file.

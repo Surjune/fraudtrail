@@ -58,11 +58,32 @@ patterns and the regulatory references carry a 384-dimension embedding. Retrieva
 `vectorSearch` followed by a graph hop onto the card each hit was opened on, so a retrieved
 case arrives connected to what it touched rather than as a loose paragraph.
 
+**Through MCP.** `run_agent.py --mcp` reaches the graph through the TigerGraph MCP
+server instead of REST: the same installed queries, called as MCP tools over stdio, with
+the same answers out the other end. That is the path an external agent framework would
+take, and `src/fraudtrail/graph/mcp_client.py` is the client for it.
+
 **As case memory.** Each finished investigation is written back as an `InvestigationCase`
 connected to its card, its transactions, the devices and the prior cases it drew on, with every
 step — each evidence query, the assessment, the decision before evidence was requested, the
 response, the decision after it — stored in order as `CaseEvent` vertices. A case can be
 replayed, not just inspected.
+
+## The interface
+
+```bash
+uv run streamlit run app/dashboard.py
+```
+
+One case at a time, read back out of the graph rather than from the answer files, in five
+tabs: how the case progressed step by step, the evidence it rests on, how uncertain the
+agent was and what it asked for, what it recommends before and after that evidence with
+the approval each action needs, and the report when policy calls for one.
+
+Two other views: an **approval queue** of everything across the twenty cases that a human
+must sign off (8 actions: 6 at L1, 2 at L2), and a **ring finder** that runs label
+propagation in the graph over cards sharing a device profile, so the communities come out
+of the algorithm rather than out of a list someone wrote.
 
 ## Agentic behaviour
 
@@ -101,10 +122,12 @@ produces twenty complete, valid answer files; the prose comes from templates ins
 | `src/fraudtrail/policy/` | The Fraud Policy as code: actions, routes, thresholds, rules R1–R10 |
 | `src/fraudtrail/investigate/` | Detectors, scoring, evidence gathering, the investigation loop |
 | `src/fraudtrail/evidence/` | One interface, two sources: TigerGraph and the local warehouse |
-| `src/fraudtrail/graph/` | TigerGraph client and case write-back |
+| `src/fraudtrail/graph/` | TigerGraph client, the MCP client, and case write-back |
 | `src/fraudtrail/graphrag/` | The document corpus and local embeddings |
 | `src/fraudtrail/answer/` | Answer schema, validation, and the narrators |
 | `src/fraudtrail/llm/` | Three providers over plain HTTP, no SDKs |
+| `src/fraudtrail/evaluate/` | Replaying closed cases and scoring the agent against them |
+| `app/dashboard.py` | The analyst interface |
 | `graph/` | Schema, vector attributes, loading job, and the installed queries |
 | `scripts/` | Profile, export, load, install, embed, run |
 | `cases/` | One answer file per exam case |
@@ -142,8 +165,16 @@ Run the agent over all twenty cases:
 uv run python scripts/run_agent.py
 ```
 
-`--only HHG-014` runs one case, `--out DIR` writes elsewhere, and `--offline` takes the
-evidence from the local DuckDB warehouse instead of the graph, which needs no workspace at all.
+`--only HHG-014` runs one case, `--out DIR` writes elsewhere, `--mcp` reaches the graph
+through the TigerGraph MCP server, and `--offline` takes the evidence from the local DuckDB
+warehouse instead of the graph, which needs no workspace at all.
+
+Measure it against the bank's closed cases, and open the interface:
+
+```bash
+uv run python scripts/evaluate.py --n 120
+uv run streamlit run app/dashboard.py
+```
 
 Checks:
 

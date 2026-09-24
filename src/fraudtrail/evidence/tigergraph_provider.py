@@ -28,7 +28,8 @@ from fraudtrail.evidence.models import (
 )
 from fraudtrail.evidence.provider import EvidenceError
 from fraudtrail.evidence.similarity import keywords, most_similar
-from fraudtrail.graph.client import GraphClient, GraphError
+from fraudtrail.graph.client import GraphClient, GraphError, QueryRunner
+from fraudtrail.graph.mcp_client import McpError
 from fraudtrail.graphrag.embed import Embedder, EmbeddingError, LocalEmbedder
 
 log = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ def _string_map(value: Any) -> dict[str, str]:
 class TigerGraphProvider:
     """One installed query per question, and no query run twice for the same answer."""
 
-    def __init__(self, client: GraphClient, embedder: Embedder | None = None) -> None:
+    def __init__(self, client: QueryRunner, embedder: Embedder | None = None) -> None:
         self._client = client
         self._embedder = embedder
         self._closed: list[tuple[PriorCase, frozenset[str]]] = []
@@ -135,14 +136,19 @@ class TigerGraphProvider:
         return cls(GraphClient.from_env(resolved), embedder)
 
     @property
-    def client(self) -> GraphClient:
-        """The authenticated connection, shared with whatever writes cases back."""
+    def embedder(self) -> Embedder | None:
+        """The loaded embedding model, so a second provider need not load it again."""
+        return self._embedder
+
+    @property
+    def client(self) -> QueryRunner:
+        """The open connection, shared with whatever writes cases back."""
         return self._client
 
     def _run(self, name: str, params: JsonDict) -> JsonDict:
         try:
             return _merge(self._client.run_query(name, params))
-        except GraphError as exc:
+        except (GraphError, McpError) as exc:
             raise EvidenceError(f"{name} failed: {exc}") from exc
 
     # A vertex parameter is passed as a 1-tuple; a plain value is deprecated and fails

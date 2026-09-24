@@ -10,6 +10,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "pyTigerGraph>=1.8",
     "fastembed>=0.8.1",
+    "tigergraph-mcp>=1.0.3",
+    "streamlit>=1.64.0",
 ]
 
 [dependency-groups]
