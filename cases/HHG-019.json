@@ -29,7 +29,7 @@
         ]
       },
       {
-        "claim": "3 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use",
+        "claim": "3 closed cases on this card or its owner's cards were confirmed fraud, most often out of region use",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -39,7 +39,7 @@
         ]
       },
       {
-        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "claim": "1 earlier alert on this card was cleared when the cardholder confirmed travel to the flagged region",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -65,7 +65,7 @@
       "CC-2879",
       "CC-1908"
     ],
-    "summary": "The bank's model scored a $99.92 online purchase in billing region 264 on card C07987-K2 at 0.90. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | other | chrome 61.0 | 1280x720). 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use. Assessed as legitimate at 0.11, with 99.92 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "summary": "The bank's model flagged an online purchase of $99.92 in billing region 264 on card C07987-K2 with a score of 0.90. Although this score is above the 0.70 threshold where most flagged transactions in this book turn out legitimate, the identity record shows the device (Windows | other | chrome 61.0 | 1280x720) is New for this account. Furthermore, 3 closed cases on this card or its owner's cards were confirmed fraud, most often out of region use. The transaction was ultimately assessed as legitimate at 0.11, carrying 99.92 USD exposure. The recommended actions for this case are ALLOW_TRANSACTION and CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-019"
   },
@@ -107,6 +107,6 @@
   },
   "stop_reason": "6: probability 0.11 on 3 independent pieces of evidence is decisive",
   "tool_calls": 11,
-  "tokens": 0,
-  "latency_s": 1.61
+  "tokens": 715,
+  "latency_s": 1.77
 }

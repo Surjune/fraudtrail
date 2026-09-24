@@ -29,7 +29,7 @@
         ]
       },
       {
-        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "claim": "1 earlier alert on this card was cleared when the cardholder confirmed travel to the flagged region",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -69,7 +69,7 @@
       "CC-2537",
       "CC-3931"
     ],
-    "summary": "The bank's model scored a $100.09 online purchase in billing region 204 on card C04570-K1 at 0.57. The connection used a proxy (IP_PROXY:HIDDEN). This device profile has been used on the card before. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. Assessed as legitimate at 0.13, with 0.00 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "summary": "Our model scored a $100.09 online purchase on card C04570-K1 at 0.57 in billing region 204. The connection utilized a hidden proxy, though this device profile had previously been used on the card. One earlier alert on the card was cleared after the cardholder confirmed travel to the flagged region. The transaction was ultimately assessed as legitimate at 0.13 with 0.00 USD exposure. Recommended actions are ALLOW_TRANSACTION and CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-017"
   },
@@ -111,6 +111,6 @@
   },
   "stop_reason": "6: probability 0.13 on 4 independent pieces of evidence is decisive",
   "tool_calls": 11,
-  "tokens": 0,
-  "latency_s": 1.31
+  "tokens": 651,
+  "latency_s": 1.22
 }

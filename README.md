@@ -115,6 +115,11 @@ occasionally does not, and "occasionally" is a blocked card that should not have
 The model is an upgrade, not a dependency. With `FRAUDTRAIL_LLM_PROVIDER=none` the agent still
 produces twenty complete, valid answer files; the prose comes from templates instead.
 
+A free tier caps each model at a few requests a day, sometimes fewer than the 22 one run
+needs, so `FRAUDTRAIL_LLM_MODEL` takes several models separated by commas. When one has spent
+its daily quota the run carries on with the next rather than finishing on templates; a model
+that is merely busy passes that one request to the next and stays first in line.
+
 ## Layout
 
 | Path | What it holds |
@@ -220,16 +225,19 @@ took verdict accuracy from 56.7% to 85.0% and cost nothing in fraud recall.
 
 - **The two evidence sources agree.** The same investigation runs against TigerGraph or against
   a local DuckDB warehouse over the same data. Run both ways, the twenty answers come out
-  identical on every scored field, so a future difference points at the evidence rather than at
-  the logic.
+  identical on every field but one: the prior cases retrieved from memory, which the graph
+  finds by vector search and the warehouse by matching words. A difference anywhere else
+  points at the evidence rather than at the logic.
 - **Every answer is validated before it is written.** Wrong approval routes, a report flag that
   disagrees with the policy, a narrative outside six to twelve sentences, a legitimate verdict
   carrying affected transactions, exposure that does not match the transactions it names, or an
   identifier that is not in the dataset — each is an error, and the run reports it rather than
   hiding it. The current run has none.
 - **The model cannot introduce a fact.** Its prose is rejected if it contains an identifier,
-  amount or date that is not in the evidence it was given, or if it drops one.
-- **57 unit tests**, `ruff` and `mypy --strict` clean.
+  amount or date that is not in the evidence it was given, or if it drops one. It is also
+  rejected for supplying a reason the evidence does not give: "scored 0.57 due to a proxy"
+  asserts something about the bank's model that nothing in the case establishes.
+- **69 unit tests**, `ruff` and `mypy --strict` clean.
 
 ## Known limitations
 

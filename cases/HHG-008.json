@@ -21,7 +21,7 @@
         ]
       },
       {
-        "claim": "18 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present new device",
+        "claim": "18 closed cases on this card or its owner's cards were confirmed fraud, most often card not present new device",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -33,7 +33,7 @@
         ]
       },
       {
-        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed a purchase from a new phone",
+        "claim": "1 earlier alert on this card was cleared when the cardholder confirmed a purchase from a new phone",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -85,9 +85,9 @@
       "CC-4485",
       "CC-4163",
       "CC-2269",
-      "CC-2038"
+      "CC-1433"
     ],
-    "summary": "Customer C13171 disputed a $55.68 online purchase online on card C13171-K2. This device profile has been used on the card before. 18 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present new device. 1 earlier alert(s) on this card were cleared when the cardholder confirmed a purchase from a new phone. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.04, with 255.04 USD exposure; recommended actions are CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD.",
+    "summary": "Customer C13171 disputed an online purchase of $55.68 made on card C13171-K2, though the device profile had been used on the card before. Historical review shows 18 closed cases on this card or its owner's cards confirmed as fraud, most often as card not present new device, alongside 1 earlier alert cleared when the cardholder confirmed a purchase from a new phone. After being asked to validate the activity, the cardholder confirmed the disputed transaction as their own. The event was assessed as legitimate at a score of 0.04 with 255.04 USD exposure, resulting in recommended actions of CREATE_CASE, WARN_CUSTOMER, and CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-008"
   },
@@ -145,6 +145,6 @@
   },
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 11,
-  "tokens": 0,
-  "latency_s": 4.55
+  "tokens": 683,
+  "latency_s": 4.69
 }

@@ -34,7 +34,7 @@
         ]
       },
       {
-        "claim": "3 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud",
+        "claim": "3 closed cases on this card or its owner's cards were confirmed fraud, most often card not present fraud",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -44,7 +44,7 @@
         ]
       },
       {
-        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "claim": "1 earlier alert on this card was cleared when the cardholder confirmed travel to the flagged region",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -76,7 +76,7 @@
       "CC-5481",
       "CC-1305"
     ],
-    "summary": "Customer C08106 disputed a $128.33 online purchase online on card C08106-K1. The identity record marks the device as New for this account ( |  | firefox 47.0 | ). $128.33 is 3.3 standard deviations above this card's usual $35.31. 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. Assessed as fraud at 0.97, with 221.19 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "summary": "Customer C08106 disputed a $128.33 online purchase made on card C08106-K1. The transaction amount was 3.3 standard deviations above the card's typical $35.31 average, and the identity record flagged the firefox 47.0 device as new for this account. Furthermore, three closed cases involving this card or its owner's cards were confirmed as fraud, predominantly card not present fraud. The case was assessed as fraud with a score of 0.97 and 221.19 USD in exposure. Consequently, the recommended actions of BLOCK_CARD and CREATE_CASE were established.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-004"
   },
@@ -118,6 +118,6 @@
   },
   "stop_reason": "6: probability 0.97 on 5 independent pieces of evidence is decisive",
   "tool_calls": 11,
-  "tokens": 0,
-  "latency_s": 3.4
+  "tokens": 660,
+  "latency_s": 2.61
 }

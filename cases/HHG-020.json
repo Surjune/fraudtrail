@@ -29,7 +29,7 @@
         ]
       },
       {
-        "claim": "2 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover",
+        "claim": "2 closed cases on this card or its owner's cards were confirmed fraud, most often account takeover",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -50,10 +50,10 @@
       "CC-2447",
       "CC-2277",
       "CC-2989",
-      "CC-0241",
-      "CC-3368"
+      "CC-3368",
+      "CC-0241"
     ],
-    "summary": "The bank's model scored a $125.08 online purchase in billing region 264 on card C12265-K2 at 0.52. The identity record marks the device as New for this account (Trident/7.0 | Windows 10 | ie 11.0 for desktop | 1920x1080). Product code R has never been used on this card in 82 prior transactions. 2 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.10, with 125.08 USD exposure; recommended actions are CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "summary": "Our monitoring model flagged an online purchase of $125.08 made on card C12265-K2 within billing region 264 with a score of 0.52. \nThe device fingerprint showed a new browser environment (Trident/7.0 | Windows 10 | ie 11.0 for desktop | 1920x1080), product code R had no history across 82 prior transactions, and the account carried a history of 2 closed cases confirmed as fraud, primarily account takeover. \nHowever, the cardholder validated the activity as their own, leading to a final assessment of legitimate at 0.10 with $125.08 USD exposure. \nThe recommended actions recorded for the file are CREATE_CASE, ALLOW_TRANSACTION, and CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-020"
   },
@@ -106,6 +106,6 @@
   },
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 11,
-  "tokens": 0,
-  "latency_s": 0.93
+  "tokens": 745,
+  "latency_s": 0.82
 }

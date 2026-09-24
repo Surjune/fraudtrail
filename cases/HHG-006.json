@@ -81,7 +81,7 @@
       "CC-5285",
       "CC-0241"
     ],
-    "summary": "Customer C07297 disputed a $482.12 online purchase in billing region 264 on card C07297-K1. The identity record marks the device as New for this account (Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080). $482.12 is 2.7 standard deviations above this card's usual $116.73. This device profile has been used on the card before. Assessed as fraud at 0.97, with 1,906.07 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
+    "summary": "Customer C07297 disputed a $482.12 online purchase made in billing region 264 using card C07297-K1. Although the device profile linked to Trident/7.0, Windows 7, ie 11.0 for desktop, and a 1920x1080 resolution has been used on the card previously, the identity record flags this specific device as new for the account. Furthermore, the transaction amount of $482.12 sits 2.7 standard deviations above the card's typical $116.73 average. The activity was assessed as fraud with a score of 0.97 and 1,906.07 USD in exposure, leading to recommended actions of BLOCK_CARD, CREATE_CASE, and FILE_REPORT.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-006"
   },
@@ -126,7 +126,7 @@
   "sar": {
     "file": true,
     "reason": "3a: the pattern is undocumented",
-    "narrative": "Between 2016-11-21 and 2016-11-21, card C07297-K1 belonging to customer C07297 was used for 4 transaction(s) totalling $1,906.07 that the bank believes were unauthorised. The activity ran through online channel(s) under product code(s) C, in billing region(s) 264, 476. The identity record marks the device as New for this account (Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080). $482.12 is 2.7 standard deviations above this card's usual $116.73. This device profile has been used on the card before. The cardholder reported that they did not make the flagged purchase. Several online purchases on one card inside an hour, each sitting just below a $500 authorization limit and together far above it. The amounts look chosen to clear individually rather than to match anything the cardholder usually buys. The total suspicious amount is $1,906.07, and the recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
+    "narrative": "Between 2016-11-21 and 2016-11-21, card C07297-K1 belonging to customer C07297 was used for 4 transactions totalling $1,906.07 that the bank believes were unauthorised. The activity ran through the online channel under product code C, in billing regions 264, 476. The identity record marks the device as New for this account (Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080). This device profile has been used on the card before. Several online purchases on one card inside an hour appeared, each sitting just below a $500 authorization limit and together far above it. The amounts look chosen to clear individually rather than to match anything the cardholder usually buys. A single transaction amount of $482.12 sits 2.7 standard deviations above this card's usual $116.73. The cardholder reported that they did not make the flagged purchase. The total suspicious amount is $1,906.07. The recommended actions for this case are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
     "subjects": [
       "C07297",
       "C07297-K1",
@@ -140,6 +140,6 @@
   },
   "stop_reason": "6: probability 0.97 on 4 independent pieces of evidence is decisive",
   "tool_calls": 11,
-  "tokens": 0,
-  "latency_s": 1.19
+  "tokens": 2579,
+  "latency_s": 3.62
 }

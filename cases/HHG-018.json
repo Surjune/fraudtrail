@@ -13,7 +13,7 @@
     "exposure_usd": 0.0,
     "evidence": [
       {
-        "claim": "19 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover",
+        "claim": "19 closed cases on this card or its owner's cards were confirmed fraud, most often account takeover",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -25,7 +25,7 @@
         ]
       },
       {
-        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "claim": "1 earlier alert on this card was cleared when the cardholder confirmed travel to the flagged region",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -83,7 +83,7 @@
       "CC-0537",
       "CC-2767"
     ],
-    "summary": "Customer C02354 disputed a $39.08 in-person purchase in billing region 126 on card C02354-K2. 19 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The cardholder reported that they did not make the flagged purchase. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.08, with 2,346.00 USD exposure; recommended actions are CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD.",
+    "summary": "Cardholder C02354 reported they did not make a disputed $39.08 in-person purchase in billing region 126 on card C02354-K2, despite an earlier alert on this card having been cleared when they confirmed travel to the flagged region. When subsequently asked to validate the activity, the cardholder confirmed the purchase as their own. Historical review shows 19 closed cases on this card or its owner's cards were confirmed fraud, most often account takeover. The activity was assessed as legitimate at a score of 0.08, carrying 2,346.00 USD in exposure. The recommended actions for the case are CREATE_CASE, WARN_CUSTOMER, and CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-018"
   },
@@ -151,6 +151,6 @@
   },
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 10,
-  "tokens": 0,
-  "latency_s": 4.29
+  "tokens": 694,
+  "latency_s": 4.25
 }

@@ -13,7 +13,7 @@
     "exposure_usd": 0.0,
     "evidence": [
       {
-        "claim": "1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud",
+        "claim": "1 closed case on this card or its owner's cards was confirmed fraud, most often card not present fraud",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -21,7 +21,7 @@
         ]
       },
       {
-        "claim": "1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region",
+        "claim": "1 earlier alert on this card was cleared when the cardholder confirmed travel to the flagged region",
         "source": "graph",
         "ref": "query:prior_cases(card_id)",
         "entity_ids": [
@@ -53,7 +53,7 @@
       "CC-0994",
       "CC-4197"
     ],
-    "summary": "The bank's model scored a $30.91 in-person purchase in billing region 494 on card C05876-K2 at 0.55. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The same amount ($30.91 \u00b1 $0.15) and product code appear 22 times across 5 months on this card. Assessed as legitimate at 0.09, with 0.00 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
+    "summary": "Our monitoring model flagged an in-person purchase of $30.91 in billing region 494 on card C05876-K2 with a score of 0.55. Historical review reveals one closed case of confirmed fraud, predominantly card not present fraud, associated with this card or its owner's cards, alongside one earlier alert on the same card that was cleared after the cardholder confirmed travel to the flagged region. Further analysis shows that the exact amount of $30.91 \u00b1 $0.15 and matching product code recur 22 times across a span of 5 months on this card. Consequently, the transaction was assessed as legitimate at a score of 0.09, resulting in 0.00 USD exposure. The recommended actions for this case are ALLOW_TRANSACTION and CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-012"
   },
@@ -95,6 +95,6 @@
   },
   "stop_reason": "6: probability 0.09 on 2 independent pieces of evidence is decisive",
   "tool_calls": 10,
-  "tokens": 0,
-  "latency_s": 1.46
+  "tokens": 713,
+  "latency_s": 1.21
 }
