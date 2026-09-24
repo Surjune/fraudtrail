@@ -1,20 +1,16 @@
 {
   "case_id": "HHG-015",
   "case": {
-    "status": "closed_fraud",
-    "verdict": "fraud",
-    "fraud_probability": 0.97,
-    "pattern": "card_not_present_new_device",
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.1,
+    "pattern": "none",
     "pattern_description": "",
-    "affected_txn_ids": [
-      "3464869"
-    ],
-    "first_suspicious_txn_id": "3464869",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
     "connected_card_ids": [],
-    "connected_device_profiles": [
-      "Trident/7.0 | Windows 8.1 | ie 11.0 for desktop | 1680x1050"
-    ],
-    "exposure_usd": 599.94,
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
     "evidence": [
       {
         "claim": "The bank's model scored the flagged transaction at 0.77; above 0.70 most flagged transactions in this book turn out legitimate",
@@ -69,7 +65,7 @@
         ]
       },
       {
-        "claim": "Cardholder states they did not make these purchases and still has the card in their possession",
+        "claim": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for",
         "source": "customer",
         "ref": "evidence_request:1",
         "entity_ids": [
@@ -84,7 +80,7 @@
       "CC-0781",
       "CC-2989"
     ],
-    "summary": "The bank's model scored a $599.94 online purchase in billing region 327 on card C03042-K1 at 0.77. The bank's model scored the flagged transaction at 0.77; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Trident/7.0 | Windows 8.1 | ie 11.0 for desktop | 1680x1050). $599.94 is 3.5 standard deviations above this card's usual $132.61. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.97, with 599.94 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "summary": "The bank's model scored a $599.94 online purchase in billing region 327 on card C03042-K1 at 0.77. The bank's model scored the flagged transaction at 0.77; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Trident/7.0 | Windows 8.1 | ie 11.0 for desktop | 1680x1050). $599.94 is 3.5 standard deviations above this card's usual $132.61. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.10, with 599.94 USD exposure; recommended actions are CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-015"
   },
@@ -92,7 +88,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 11,
-      "assumed_response": "Cardholder states they did not make these purchases and still has the card in their possession"
+      "assumed_response": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for"
     }
   ],
   "next_best_actions": {
@@ -110,28 +106,33 @@
     ],
     "final": [
       {
-        "action": "BLOCK_CARD",
-        "route": "L1",
-        "reason": "R2: cardholder denied the transaction"
-      },
-      {
         "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "R2: cardholder denied the transaction; 3a: case opened earlier in this investigation"
+        "reason": "3a: case opened earlier in this investigation"
+      },
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
       }
     ],
-    "what_changed": "The assumed response (denied) probability moved from 0.83 to 0.97; the recommendation is now BLOCK_CARD, CREATE_CASE; VERIFY_WITH_CUSTOMER no longer applies."
+    "what_changed": "The assumed response (confirmed) probability moved from 0.83 to 0.10; the recommendation is now CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD; VERIFY_WITH_CUSTOMER no longer applies."
   },
   "sar": {
     "file": false,
-    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "reason": "R3: cardholder confirmed the transaction; no report",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0.0,
     "activity_dates": []
   },
-  "stop_reason": "6: the cardholder's denial settles the question",
+  "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 1.55
+  "latency_s": 4.08
 }

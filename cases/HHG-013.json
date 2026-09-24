@@ -103,5 +103,5 @@
   "stop_reason": "6: probability 0.85 on 3 independent pieces of evidence is decisive",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 1.78
+  "latency_s": 1.55
 }

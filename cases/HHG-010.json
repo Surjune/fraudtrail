@@ -1,20 +1,16 @@
 {
   "case_id": "HHG-010",
   "case": {
-    "status": "closed_fraud",
-    "verdict": "fraud",
-    "fraud_probability": 0.93,
-    "pattern": "card_not_present_new_device",
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.05,
+    "pattern": "none",
     "pattern_description": "",
-    "affected_txn_ids": [
-      "3506725"
-    ],
-    "first_suspicious_txn_id": "3506725",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
     "connected_card_ids": [],
-    "connected_device_profiles": [
-      "Windows | Windows 10 | edge 16.0 | 1366x768"
-    ],
-    "exposure_usd": 1000.03,
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
     "evidence": [
       {
         "claim": "The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate",
@@ -49,7 +45,7 @@
         ]
       },
       {
-        "claim": "Cardholder states they did not make these purchases and still has the card in their possession",
+        "claim": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for",
         "source": "customer",
         "ref": "evidence_request:1",
         "entity_ids": [
@@ -64,7 +60,7 @@
       "CC-2879",
       "CC-2531"
     ],
-    "summary": "The bank's model scored a $1,000.03 online purchase in billing region 469 on card C10434-K1 at 0.90. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | Windows 10 | edge 16.0 | 1366x768). $1,000.03 is 4.9 standard deviations above this card's usual $131.25. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.93, with 1,000.03 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
+    "summary": "The bank's model scored a $1,000.03 online purchase in billing region 469 on card C10434-K1 at 0.90. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | Windows 10 | edge 16.0 | 1366x768). $1,000.03 is 4.9 standard deviations above this card's usual $131.25. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.05, with 1,000.03 USD exposure; recommended actions are CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-010"
   },
@@ -72,7 +68,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 11,
-      "assumed_response": "Cardholder states they did not make these purchases and still has the card in their possession"
+      "assumed_response": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for"
     }
   ],
   "next_best_actions": {
@@ -95,40 +91,33 @@
     ],
     "final": [
       {
-        "action": "BLOCK_CARD",
-        "route": "L1",
-        "reason": "R2: cardholder denied the transaction"
-      },
-      {
         "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "R2: cardholder denied the transaction; 3a: case opened earlier in this investigation; 3a: a report always has a case behind it"
+        "reason": "3a: case opened earlier in this investigation"
       },
       {
-        "action": "FILE_REPORT",
-        "route": "L2",
-        "reason": "R2 and 3a: exposure $1,000.03 exceeds $1,000"
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
       }
     ],
-    "what_changed": "The assumed response (denied) probability moved from 0.52 to 0.93; the recommendation is now BLOCK_CARD, CREATE_CASE, FILE_REPORT; VERIFY_WITH_CUSTOMER, ESCALATE_TO_ANALYST no longer applies."
+    "what_changed": "The assumed response (confirmed) probability moved from 0.52 to 0.05; the recommendation is now CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD; VERIFY_WITH_CUSTOMER, ESCALATE_TO_ANALYST no longer applies."
   },
   "sar": {
-    "file": true,
-    "reason": "R2 and 3a: exposure $1,000.03 exceeds $1,000",
-    "narrative": "Between 2016-12-02 and 2016-12-02, card C10434-K1 belonging to customer C10434 was used for 1 transaction(s) totalling $1,000.03 that the bank believes were unauthorised. The activity ran through online channel(s) under product code(s) R, in billing region(s) 469. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | Windows 10 | edge 16.0 | 1366x768). $1,000.03 is 4.9 standard deviations above this card's usual $131.25. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The cardholder was asked to validate the activity and denied it. The total suspicious amount is $1,000.03, and the recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
-    "subjects": [
-      "C10434",
-      "C10434-K1",
-      "Windows | Windows 10 | edge 16.0 | 1366x768"
-    ],
-    "total_amount_usd": 1000.03,
-    "activity_dates": [
-      "2016-12-02",
-      "2016-12-02"
-    ]
+    "file": false,
+    "reason": "R3: cardholder confirmed the transaction; no report",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
   },
-  "stop_reason": "6: the cardholder's denial settles the question",
+  "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 1.18
+  "latency_s": 2.6
 }

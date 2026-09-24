@@ -33,7 +33,7 @@
         ]
       },
       {
-        "claim": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows no episode behind the alert",
+        "claim": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for",
         "source": "customer",
         "ref": "evidence_request:1",
         "entity_ids": [
@@ -56,7 +56,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 10,
-      "assumed_response": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows no episode behind the alert"
+      "assumed_response": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for"
     }
   ],
   "next_best_actions": {
@@ -102,5 +102,5 @@
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 10,
   "tokens": 0,
-  "latency_s": 2.07
+  "latency_s": 2.56
 }

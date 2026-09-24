@@ -25,11 +25,11 @@ written. From the current run:
 
 | | |
 | --- | --- |
-| Verdicts | 11 fraud, 9 legitimate |
-| Patterns found | 7 card-not-present from a new device, 1 card-not-present, 1 account takeover, **2 undocumented** |
-| Reports filed | 3 |
+| Verdicts | 6 fraud, 14 legitimate |
+| Patterns found | 3 card-not-present from a new device, 1 account takeover, **2 undocumented** |
+| Reports filed | 2 |
 | Cases that asked for more evidence | 10, and the recommendation changed in all 10 |
-| Approval routes recommended | 36 auto, 11 L1, 3 L2 |
+| Approval routes recommended | 46 auto, 6 L1, 2 L2 |
 | Evidence queries per case | 10–11 |
 | Cases written to the graph | 20 of 20, with 323 case events between them |
 
@@ -151,6 +151,40 @@ Checks:
 uv run ruff check . && uv run mypy --strict src scripts && uv run pytest
 ```
 
+## Measured accuracy
+
+The exam's answer key is not public, so accuracy is measured where truth is written down:
+the bank's 5,565 closed cases. `scripts/evaluate.py` replays them as the alerts they
+started as, with the case under test hidden from every query so the agent cannot retrieve
+its own answer, and compares what it concluded with what the analysts concluded. Sampling
+is stratified and seeded, so a change in the score is a change in the agent.
+
+Over 120 replayed cases:
+
+| Measure | Result |
+| --- | --- |
+| Verdict accuracy | **85.0%** |
+| Confirmed fraud called fraud | 80.0% |
+| Cleared alerts cleared | 90.0% |
+| Pattern named correctly | 56.2% |
+| Suspicious transactions found | 47.4% |
+| Exposure matched exactly | 38.3% |
+| Action agreement (F1) | 58.5% |
+| Report decision agreement | 87.5% |
+
+The full report, including the pattern confusion matrix, is in
+[`docs/evaluation.md`](docs/evaluation.md).
+
+The harness earned its keep immediately. Verdict accuracy started at 56.7%, and the reason
+was not the investigation but the simulated customer reply: alerts the analysts had cleared
+were being denied by the assumed cardholder and so came out as fraud. The bank's history
+says what that reply should be. Where this agent judges the evidence too weak to decide and
+asks, the analysts had cleared 76% of those alerts; of the ones it decides without asking,
+86% were confirmed fraud. So a denial is now assumed only where the graph establishes
+something a cardholder cannot explain away — a device shared across unrelated cards, a
+card-testing sequence, or a device already confirmed in another fraud. That single change
+took verdict accuracy from 56.7% to 85.0% and cost nothing in fraud recall.
+
 ## How it is checked
 
 - **The two evidence sources agree.** The same investigation runs against TigerGraph or against
@@ -173,8 +207,12 @@ uv run ruff check . && uv run mypy --strict src scripts && uv run pytest
   answer the agent wants: where the graph shows the activity is the cardholder's own, the
   simulated cardholder confirms it, even when that closes a case the model leaned towards
   calling fraud. Every assumption is recorded in `evidence_requests`.
-- **No accuracy measurement against an answer key**, because the key is not public. The checks
-  above are for consistency and policy compliance, not for correctness.
+- **Episode scoping is the weakest part.** The agent agrees with the analysts on the verdict
+  85% of the time but finds only 47% of the transactions they held responsible, and matches
+  their exposure figure on 38% of cases. It groups the wrong transactions into an episode more
+  often than it reaches the wrong conclusion, which is where the next work belongs.
+- **Accuracy is measured against the bank's closed cases, not the exam's answer key**, which
+  is not public. A replay resembles the exam but is not it.
 - **The regulatory references are cited but not ingested.** The corpus holds the policy, the
   patterns and the reference list from the dataset guide; the linked FinCEN and FATF PDFs are
   not downloaded.

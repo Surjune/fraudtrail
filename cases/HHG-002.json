@@ -1,18 +1,16 @@
 {
   "case_id": "HHG-002",
   "case": {
-    "status": "closed_fraud",
-    "verdict": "fraud",
-    "fraud_probability": 0.96,
-    "pattern": "card_not_present_fraud",
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.08,
+    "pattern": "none",
     "pattern_description": "",
-    "affected_txn_ids": [
-      "3478782"
-    ],
-    "first_suspicious_txn_id": "3478782",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
     "connected_card_ids": [],
     "connected_device_profiles": [],
-    "exposure_usd": 292.36,
+    "exposure_usd": 0.0,
     "evidence": [
       {
         "claim": "The bank's model scored the flagged transaction at 0.79; above 0.70 most flagged transactions in this book turn out legitimate",
@@ -39,7 +37,7 @@
         ]
       },
       {
-        "claim": "Cardholder states they did not make these purchases and still has the card in their possession",
+        "claim": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for",
         "source": "customer",
         "ref": "evidence_request:1",
         "entity_ids": [
@@ -54,7 +52,7 @@
       "CC-3931",
       "CC-0657"
     ],
-    "summary": "The bank's model scored a $292.36 online purchase online on card C11891-K1 at 0.79. The bank's model scored the flagged transaction at 0.79; above 0.70 most flagged transactions in this book turn out legitimate. $292.36 is 9.7 standard deviations above this card's usual $44.66. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.96, with 292.36 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
+    "summary": "The bank's model scored a $292.36 online purchase online on card C11891-K1 at 0.79. The bank's model scored the flagged transaction at 0.79; above 0.70 most flagged transactions in this book turn out legitimate. $292.36 is 9.7 standard deviations above this card's usual $44.66. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.08, with 292.36 USD exposure; recommended actions are CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
     "written_to_graph": true,
     "graph_case_id": "CASE-HHG-002"
   },
@@ -62,7 +60,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 10,
-      "assumed_response": "Cardholder states they did not make these purchases and still has the card in their possession"
+      "assumed_response": "Cardholder confirms the purchase as their own activity, consistent with the investigation: the graph shows nothing the cardholder cannot account for"
     }
   ],
   "next_best_actions": {
@@ -80,28 +78,33 @@
     ],
     "final": [
       {
-        "action": "BLOCK_CARD",
-        "route": "L1",
-        "reason": "R2: cardholder denied the transaction"
-      },
-      {
         "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "R2: cardholder denied the transaction; 3a: case opened earlier in this investigation"
+        "reason": "3a: case opened earlier in this investigation"
+      },
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed the transaction"
       }
     ],
-    "what_changed": "The assumed response (denied) probability moved from 0.65 to 0.96; the recommendation is now BLOCK_CARD, CREATE_CASE; VERIFY_WITH_CUSTOMER no longer applies."
+    "what_changed": "The assumed response (confirmed) probability moved from 0.65 to 0.08; the recommendation is now CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD; VERIFY_WITH_CUSTOMER no longer applies."
   },
   "sar": {
     "file": false,
-    "reason": "3a: no reporting factor holds (exposure at or under $1,000, no shared origin, no link to other fraud, not coordinated)",
+    "reason": "R3: cardholder confirmed the transaction; no report",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0.0,
     "activity_dates": []
   },
-  "stop_reason": "6: the cardholder's denial settles the question",
+  "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 10,
   "tokens": 0,
-  "latency_s": 1.1
+  "latency_s": 1.79
 }
