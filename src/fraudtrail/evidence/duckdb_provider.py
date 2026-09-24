@@ -24,6 +24,7 @@ from fraudtrail.evidence.models import (
     RegionSpan,
     SharedOrigin,
     Txn,
+    in_order_of_first_use,
 )
 from fraudtrail.evidence.provider import EvidenceError
 from fraudtrail.evidence.similarity import keywords, most_similar
@@ -209,9 +210,12 @@ class DuckDbProvider:
         )
         new_devices = sum(1 for r in rows if str(r[4] or "") == DEVICE_NEW)
         proxies = sum(1 for r in rows if str(r[5] or "").startswith(PROXY_PREFIX))
+        first_used: dict[str, datetime] = {}
+        for r in rows:
+            first_used.setdefault(str(r[0]), r[3])
         return DeviceReach(
             profile_id=profile_id,
-            cards=tuple(dict.fromkeys(str(r[0]) for r in rows)),
+            cards=in_order_of_first_use(first_used),
             customers=tuple(dict.fromkeys(str(r[1]) for r in rows)),
             txn_ids=tuple(txn_ids),
             prior_fraud_cases=tuple(sorted(str(r[0]) for r in cases)),

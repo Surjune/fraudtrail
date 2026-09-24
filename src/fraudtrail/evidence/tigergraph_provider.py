@@ -25,6 +25,7 @@ from fraudtrail.evidence.models import (
     RegionSpan,
     SharedOrigin,
     Txn,
+    in_order_of_first_use,
 )
 from fraudtrail.evidence.provider import EvidenceError
 from fraudtrail.evidence.similarity import keywords, most_similar
@@ -272,9 +273,12 @@ class TigerGraphProvider:
         n_txns = int(result.get("n_txns") or 0)
         if not n_txns:
             return DeviceReach(profile_id=profile_id)
+        first_used = {
+            card: _required_ts(ts) for card, ts in _string_map(result.get("card_first_ts")).items()
+        }
         return DeviceReach(
             profile_id=profile_id,
-            cards=_strings(result.get("cards")),
+            cards=in_order_of_first_use(first_used),
             customers=_strings(result.get("customers")),
             txn_ids=_strings(result.get("txns")),
             prior_fraud_cases=tuple(sorted(_strings(result.get("prior_fraud_cases")))),

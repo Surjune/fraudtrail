@@ -75,7 +75,10 @@ CREATE OR REPLACE QUERY card_baseline(VERTEX<Card> card, DATETIME before_ts)
 # confirmed fraud on any of them. This is what turns one alert into a ring.
 CREATE OR REPLACE QUERY device_reach(VERTEX<DeviceProfile> profile, DATETIME from_ts, DATETIME to_ts)
     FOR GRAPH FraudTrail SYNTAX v2 {
-  SetAccum<STRING> @@cards, @@customers, @@txns, @@prior_cases;
+  SetAccum<STRING> @@customers, @@txns, @@prior_cases;
+  # When each card first used the device: a set has no order, and the first cards of a
+  # ring are the ones a report names.
+  MapAccum<STRING, MinAccum<DATETIME>> @@card_first_ts;
   MinAccum<DATETIME> @@first_ts;
   MaxAccum<DATETIME> @@last_ts;
   # A ring device is new to every account it touches, while a browser fingerprint that
@@ -91,12 +94,12 @@ CREATE OR REPLACE QUERY device_reach(VERTEX<DeviceProfile> profile, DATETIME fro
                CASE WHEN t.device_status == "New" THEN @@n_new_device += 1 END,
                CASE WHEN t.proxy_flag != "" THEN @@n_proxy += 1 END;
   Cards = SELECT c FROM Txns:t -(MADE)- Card:c
-          ACCUM @@cards += c.card_id, @@customers += c.customer_id;
+          ACCUM @@card_first_ts += (c.card_id -> t.ts), @@customers += c.customer_id;
   Cases = SELECT cc FROM Txns:t -(INVOLVES)- ClosedCase:cc
           WHERE cc.outcome == "confirmed_fraud"
           ACCUM @@prior_cases += cc.case_id;
 
-  PRINT @@cards AS cards, @@customers AS customers, @@txns AS txns,
+  PRINT @@card_first_ts AS card_first_ts, @@customers AS customers, @@txns AS txns,
         @@prior_cases AS prior_fraud_cases, @@first_ts AS first_ts, @@last_ts AS last_ts,
         @@n_txns AS n_txns, @@n_new_device AS n_new_device, @@n_proxy AS n_proxy;
 }

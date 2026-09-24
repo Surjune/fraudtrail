@@ -18,6 +18,15 @@ DEVICE_NEW = "New"
 PROXY_PREFIX = "IP_PROXY"
 
 
+def in_order_of_first_use(first_used: dict[str, datetime]) -> tuple[str, ...]:
+    """Ids by when each first appeared, then by id.
+
+    A graph set comes back in no fixed order, and a report that names the first ten cards
+    of a ring must name the same ten on every run.
+    """
+    return tuple(sorted(first_used, key=lambda item: (first_used[item], item)))
+
+
 @dataclass(frozen=True)
 class Txn:
     txn_id: str
