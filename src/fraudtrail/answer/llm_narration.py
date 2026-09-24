@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 
 from fraudtrail.answer.narration import Narration, Narrator, TemplateNarrator
 from fraudtrail.answer.validate import count_sentences
@@ -105,9 +106,16 @@ def _clean(text: str) -> str:
 class LlmNarrator:
     """Wraps a model around `TemplateNarrator`, which stays the source of the facts."""
 
-    def __init__(self, client: LlmClient, fallback: Narrator | None = None) -> None:
+    def __init__(
+        self,
+        client: LlmClient,
+        fallback: Narrator | None = None,
+        policy_context: Callable[[str], tuple[str, ...]] | None = None,
+    ) -> None:
         self._client = client
         self._fallback = fallback or TemplateNarrator()
+        # GraphRAG: the policy wording this case sits under, retrieved by meaning.
+        self._policy_context = policy_context
         self.calls = 0
         self.tokens = 0
         self.rejected = 0
@@ -126,6 +134,20 @@ class LlmNarrator:
         )
         return self._rewrite(source, prompt, SUMMARY_MIN_SENTENCES, SUMMARY_MAX_SENTENCES)
 
+    def _grounding(self, source: str) -> str:
+        """The policy sections this case sits under, quoted to the model as context."""
+        if self._policy_context is None:
+            return ""
+        chunks = self._policy_context(source)
+        if not chunks:
+            return ""
+        joined = "\n\n".join(chunks)
+        return (
+            "\n\nFor tone and vocabulary only, here is the bank's own policy wording for "
+            "situations like this one. Do not take any identifier, amount or date from it, "
+            "and do not quote it at length:\n\n" + joined
+        )
+
     def sar_narrative(self, n: Narration) -> str:
         source = self._fallback.sar_narrative(n)
         prompt = (
@@ -135,7 +157,7 @@ class LlmNarrator:
             "Keep every identifier, amount and date. "
             f"Use between {NARRATIVE_MIN_SENTENCES} and {NARRATIVE_MAX_SENTENCES} "
             "sentences.\n\n"
-            f"{source}"
+            f"{source}" + self._grounding(source)
         )
         return self._rewrite(source, prompt, NARRATIVE_MIN_SENTENCES, NARRATIVE_MAX_SENTENCES)
 

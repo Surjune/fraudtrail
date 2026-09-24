@@ -45,6 +45,10 @@ EPOCH = "1970-01-01 00:00:00"
 MAX_CLOSED_CASES = 8000
 CORPUS_UNTIL = "2030-01-01 00:00:00"
 
+# How many policy sections are handed to the model as grounding. More than a few and
+# the wording it should follow is buried in the ones it should not.
+POLICY_CHUNKS = 3
+
 # Vector search asks for this many times k, because hits opened after the alert are
 # dropped: an investigation may only use what the bank knew at the time.
 OVERFETCH = 4
@@ -376,6 +380,32 @@ class TigerGraphProvider:
         matches = [self._txn(v, card_id) for v in _vertices(result.get("matches"))]
         matches.sort(key=lambda t: t.ts)
         return tuple(matches)
+
+    def policy_context(self, query: str, k: int = POLICY_CHUNKS) -> tuple[str, ...]:
+        """Sections of the policy and the regulatory guidance nearest this situation.
+
+        This is the other half of GraphRAG: the model is handed the bank's own wording to
+        ground its explanation in, retrieved by meaning, rather than raw rows.
+        """
+        if self._embedder is None:
+            return ()
+        try:
+            vector = self._embedder.query(query)
+        except EmbeddingError as exc:
+            log.warning("could not embed the query for policy context: %s", exc)
+            return ()
+        try:
+            result = self._run("doc_search", {"query_vec": vector, "k": k})
+        except EvidenceError as exc:
+            log.warning("policy retrieval failed, writing without it: %s", exc)
+            return ()
+        chunks: list[str] = []
+        for vertex in _vertices(result.get("chunks")):
+            a = _attrs(vertex)
+            content = str(a.get("content") or "").strip()
+            if content:
+                chunks.append(content)
+        return tuple(chunks)
 
     def _load_closed_cases(self) -> None:
         """Read the closed-case corpus once, then rank it per investigation in memory.

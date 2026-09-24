@@ -48,14 +48,17 @@ def build_provider(settings: Settings, offline: bool, mcp: bool) -> EvidenceProv
     return TigerGraphProvider.from_env(settings)
 
 
-def build_narrator(settings: Settings) -> Narrator:
+def build_narrator(settings: Settings, provider: EvidenceProvider) -> Narrator:
     """The model when one is configured, templates when not. Both write every answer."""
     client = build_client(settings.llm)
     if client is None:
         log.info("no model configured: writing the prose from templates")
         return TemplateNarrator()
     log.info("prose from %s %s", settings.llm.provider.value, settings.llm.model)
-    return LlmNarrator(client)
+    # GraphRAG grounding: when the graph is the evidence source it can also retrieve the
+    # policy wording this case sits under, which the model is given as context.
+    context = provider.policy_context if isinstance(provider, TigerGraphProvider) else None
+    return LlmNarrator(client, policy_context=context)
 
 
 def main() -> None:
@@ -82,7 +85,7 @@ def main() -> None:
         cases = tuple(case for case in cases if case.case_id in wanted)
 
     provider = build_provider(settings, offline=args.offline, mcp=args.mcp)
-    narrator = build_narrator(settings)
+    narrator = build_narrator(settings, provider)
     # The graph provider already holds an authenticated client; an offline run has none,
     # so its cases stay local and say so in the answer file.
     memory = GraphMemory(provider.client) if isinstance(provider, TigerGraphProvider) else None
