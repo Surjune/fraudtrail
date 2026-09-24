@@ -54,23 +54,7 @@ The dataset has no card column, so cards are derived; the rule and how it was ch
 
 ## System architecture
 
-```mermaid
-flowchart LR
-    alert["Alert<br/>case_pack.csv"] --> gather
-    subgraph agent["Investigation agent"]
-        gather["1. Gather evidence"] --> assess["2. Detect, score,<br/>name the pattern"]
-        assess --> decide["3. Decide under<br/>the Fraud Policy"]
-        decide -->|"not settled"| ask["4. Ask for<br/>more evidence"]
-        ask --> assess
-        decide -->|"settled"| write["5. Write the answer"]
-    end
-    tg[("TigerGraph Savanna<br/>evidence, vectors, case memory")]
-    gather <-->|"installed GSQL queries<br/>over REST or MCP"| tg
-    tg -->|"policy context<br/>by vector search"| write
-    write --> answer["cases/HHG-0xx.json"]
-    write -->|"InvestigationCase<br/>and CaseEvents"| tg
-    tg --> ui["Analyst dashboard"]
-```
+![How an alert moves through the agent and the graph](docs/images/architecture.png)
 
 The graph finds the evidence and code makes the decisions. TigerGraph plays four parts:
 
@@ -214,22 +198,7 @@ behind HHG-014, on 28 cards.
 
 ## Inside the graph
 
-```mermaid
-flowchart LR
-    Customer -->|OWNS| Card
-    Card -->|MADE| Transaction
-    Transaction -->|FROM_DEVICE| DeviceProfile
-    Transaction -->|BILLED_IN| BillingRegion
-    Transaction -->|"PURCHASER_EMAIL, RECIPIENT_EMAIL"| EmailDomain
-    Transaction -->|NEXT| Transaction
-    ClosedCase -->|INVOLVES| Transaction
-    ClosedCase -->|"ON_CARD, CONNECTED_TO"| Card
-    ClosedCase -->|CASE_PATTERN| Pattern
-    InvestigationCase -->|"INV_FLAGGED, INV_AFFECTS"| Transaction
-    InvestigationCase -->|INV_SIMILAR_CLOSED| ClosedCase
-    InvestigationCase -->|INV_CITES| DocChunk
-    InvestigationCase -->|HAS_EVENT| CaseEvent
-```
+![The graph schema in three layers: evidence, the bank's closed cases, and this agent's investigations](docs/images/graph-schema.png)
 
 Eleven vertex types and twenty-one edge types in three layers: the evidence, the bank's closed
 cases, and this agent's own investigations. `ClosedCase`, `InvestigationCase` and `DocChunk`
