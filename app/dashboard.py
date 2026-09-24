@@ -25,7 +25,9 @@ from fraudtrail.answer.schema import Answer
 from fraudtrail.config import load_settings
 from fraudtrail.graph.client import GraphClient
 from fraudtrail.graph.memory import GraphMemory
+from fraudtrail.investigate import constants as ic
 from fraudtrail.policy.actions import Route
+from fraudtrail.wording import counted
 
 REPO = Path(__file__).resolve().parent.parent
 CASES_DIR = REPO / "cases"
@@ -34,6 +36,20 @@ CASES_DIR = REPO / "cases"
 RING_FROM = "2016-11-01 00:00:00"
 RING_TO = "2016-12-31 23:59:59"
 
+# Label propagation rounds. A ring is a star of cards around one or two devices, so labels
+# settle within a few hops; six is comfortably past that and still bounded.
+LABEL_ROUNDS = 6
+
+# Share of a device's transactions behind an anonymous proxy. In the exam window 71 devices
+# pass the investigation's three ring tests; exactly one of them, the device behind HHG-014,
+# is behind an anonymous proxy at all (on every transaction). The other 70 are ordinary
+# Apple and Windows configurations at zero.
+RING_MIN_ANONYMOUS_SHARE = 0.5
+
+# How many rings the view lists, and how many cards each one shows before trimming.
+MAX_RINGS_SHOWN = 10
+MAX_RING_CARDS_SHOWN = 40
+
 ROUTE_HELP = {
     Route.AUTO: "the agent may do this without asking",
     Route.L1: "a fraud analyst must approve",
@@ -41,6 +57,8 @@ ROUTE_HELP = {
 }
 
 VERDICT_COLOUR = {"fraud": "#b3261e", "legitimate": "#146c2e", "uncertain": "#8a6100"}
+
+VIEWS = ["Case", "Queue", "Rings"]
 
 
 @st.cache_resource
@@ -67,25 +85,46 @@ def read_case(case_id: str) -> dict[str, Any]:
 
 
 @st.cache_data(show_spinner="Running label propagation over shared devices…")
-def find_rings(min_cards: int) -> list[tuple[str, list[str]]]:
-    """Communities of cards that share a device, found by the graph algorithm."""
+def find_rings(min_cards: int) -> list[tuple[list[str], list[str]]]:
+    """Communities of cards that share a device, found by the graph algorithm.
+
+    Each ring comes back as its cards and the device profiles that link them.
+    """
     blocks = graph_client().run_query(
         "ring_components",
-        {"from_ts": RING_FROM, "to_ts": RING_TO, "rounds": 6, "min_ring_cards": min_cards},
+        {
+            "from_ts": RING_FROM,
+            "to_ts": RING_TO,
+            "rounds": LABEL_ROUNDS,
+            "min_ring_cards": min_cards,
+            # The tests the investigation applies to a shared device, and the proxy test.
+            "min_device_cards": ic.SHARED_ORIGIN_MIN_CARDS,
+            "max_device_cards": ic.SHARED_ORIGIN_MAX_CARDS,
+            "min_new_share": ic.SHARED_ORIGIN_MIN_NEW_DEVICE_SHARE,
+            "min_anonymous_share": RING_MIN_ANONYMOUS_SHARE,
+        },
     )
     merged: dict[str, Any] = {}
     for block in blocks:
         if isinstance(block, dict):
             merged.update(block)
     components = merged.get("components")
+    on_device = merged.get("cards_on_device")
     if not isinstance(components, dict):
         return []
-    rings = [
-        (str(label), [str(c) for c in cards])
-        for label, cards in components.items()
-        if isinstance(cards, list) and len(cards) >= min_cards
-    ]
-    rings.sort(key=lambda item: len(item[1]), reverse=True)
+    devices = on_device if isinstance(on_device, dict) else {}
+    rings: list[tuple[list[str], list[str]]] = []
+    for cards in components.values():
+        if not isinstance(cards, list) or len(cards) < min_cards:
+            continue
+        members = {str(c) for c in cards}
+        linking = sorted(
+            str(profile)
+            for profile, on in devices.items()
+            if isinstance(on, list) and members & {str(c) for c in on}
+        )
+        rings.append((sorted(members), linking))
+    rings.sort(key=lambda ring: len(ring[0]), reverse=True)
     return rings
 
 
@@ -227,16 +266,23 @@ def show_rings() -> None:
     st.subheader("Rings in the exam window")
     st.caption(
         "Label propagation over cards that share a device profile, run in the graph. "
-        "Nothing here is told what to look for."
+        "Nothing here is told what to look for. A device takes part only if it could be a "
+        "ring: a fully specified profile, on several cards but not hundreds, new on nearly "
+        "every account it touches, and behind an anonymous proxy."
     )
     min_cards = st.slider("Smallest ring to show", 3, 25, 8)
     if not st.button("Run the graph algorithm"):
         return
     rings = find_rings(min_cards)
-    st.write(f"{len(rings)} components of {min_cards} or more cards")
-    for label, cards in rings[:10]:
-        with st.expander(f"{len(cards)} cards — component {label}"):
-            st.write(", ".join(f"`{c}`" for c in cards[:40]))
+    st.write(f"{counted(len(rings), 'ring')} of {min_cards} or more cards")
+    for index, (cards, devices) in enumerate(rings[:MAX_RINGS_SHOWN]):
+        linked_by = devices[0] if len(devices) == 1 else counted(len(devices), "device profile")
+        with st.expander(
+            f"{counted(len(cards), 'card')} linked by {linked_by}", expanded=not index
+        ):
+            st.write(", ".join(f"`{c}`" for c in cards[:MAX_RING_CARDS_SHOWN]))
+            for device in devices:
+                st.code(device, language=None)
 
 
 def main() -> None:
@@ -246,7 +292,11 @@ def main() -> None:
 
     st.sidebar.title("FraudTrail")
     st.sidebar.caption(f"graph: {settings.tigergraph.graph}")
-    view = st.sidebar.radio("View", ["Case", "Queue", "Rings"])
+    # ?view=Queue or ?case=HHG-014 opens that view directly, so a case can be shared as a link.
+    requested_view = st.query_params.get("view", VIEWS[0])
+    view = st.sidebar.radio(
+        "View", VIEWS, index=VIEWS.index(requested_view) if requested_view in VIEWS else 0
+    )
 
     if view == "Queue":
         st.title("Approval queue")
@@ -274,9 +324,12 @@ def main() -> None:
         show_rings()
         return
 
+    case_ids = list(answers)
+    requested_case = st.query_params.get("case", "")
     case_id = st.sidebar.selectbox(
         "Case",
-        list(answers),
+        case_ids,
+        index=case_ids.index(requested_case) if requested_case in case_ids else 0,
         format_func=lambda c: f"{c} — {answers[c].case.verdict.value}",
     )
     answer = answers[case_id]

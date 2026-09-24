@@ -184,17 +184,37 @@ CREATE OR REPLACE QUERY shared_origin(VERTEX<Card> card, DATETIME from_ts, DATET
 # Label propagation over cards that share a device profile: the rings in the exam window,
 # found without being told what to look for. Runs a fixed number of rounds so it always
 # terminates.
+#
+# Only devices that could be a ring take part: a fully specified profile, reaching several
+# cards but not hundreds, new on nearly every account it touches, and behind an anonymous
+# proxy. Without the first three the common browser fingerprints chain every card in the
+# window into one component of thousands; without the last, ordinary Apple and Windows
+# configurations that pass the first three chain into one of hundreds.
 CREATE OR REPLACE QUERY ring_components(DATETIME from_ts, DATETIME to_ts, INT rounds = 6,
-    INT min_ring_cards = 3) FOR GRAPH FraudTrail SYNTAX v2 {
+    INT min_ring_cards = 3, INT min_device_cards = 3, INT max_device_cards = 60,
+    DOUBLE min_new_share = 0.8, DOUBLE min_anonymous_share = 0.5)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  SumAccum<INT> @n_txns, @n_new, @n_anonymous;
+  SetAccum<STRING> @device_cards;
   MapAccum<STRING, SetAccum<STRING>> @@cards_on_device;
   MapAccum<STRING, MinAccum<STRING>> @@label;
   MapAccum<STRING, SetAccum<STRING>> @@members;
-  SetAccum<STRING> @@devices;
 
   Txns = SELECT t FROM Transaction:t WHERE t.ts >= from_ts AND t.ts <= to_ts;
-  OnDevice = SELECT d FROM Txns:t -(FROM_DEVICE)- DeviceProfile:d
-             ACCUM @@devices += d.profile_id;
-  Pairs = SELECT c FROM OnDevice:d -(FROM_DEVICE)- Transaction:t2 -(MADE)- Card:c
+  Specified = SELECT d FROM Txns:t -(FROM_DEVICE)- DeviceProfile:d
+              WHERE d.device_info != "" AND d.os != "" AND d.browser != "" AND d.screen != ""
+              ACCUM d.@n_txns += 1,
+                    CASE WHEN t.device_status == "New" THEN d.@n_new += 1 END,
+                    CASE WHEN t.proxy_flag LIKE "%ANONYMOUS%" THEN d.@n_anonymous += 1 END;
+  Reach = SELECT c FROM Specified:d -(FROM_DEVICE)- Transaction:t2 -(MADE)- Card:c
+          WHERE t2.ts >= from_ts AND t2.ts <= to_ts
+          ACCUM d.@device_cards += c.card_id;
+  RingDevices = SELECT d FROM Specified:d
+                WHERE d.@device_cards.size() >= min_device_cards
+                  AND d.@device_cards.size() <= max_device_cards
+                  AND d.@n_new >= min_new_share * d.@n_txns
+                  AND d.@n_anonymous >= min_anonymous_share * d.@n_txns;
+  Pairs = SELECT c FROM RingDevices:d -(FROM_DEVICE)- Transaction:t2 -(MADE)- Card:c
           WHERE t2.ts >= from_ts AND t2.ts <= to_ts
           ACCUM @@cards_on_device += (d.profile_id -> c.card_id),
                 @@label += (c.card_id -> c.card_id);
