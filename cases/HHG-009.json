@@ -41,11 +41,11 @@
       }
     ],
     "similar_prior_cases": [
-      "CC-5187",
-      "CC-4940",
-      "CC-4501",
-      "CC-4225",
-      "CC-4058"
+      "CC-4734",
+      "CC-3362",
+      "CC-3639",
+      "CC-3931",
+      "CC-1399"
     ],
     "summary": "Customer C08299 disputed a $30.02 online purchase in billing region 203 on card C08299-K1. The cardholder reported that they did not make the flagged purchase. The same amount ($30.02 \u00b1 $0.15) and product code appear 4 times across 3 months on this card. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.03, with 0.00 USD exposure; recommended actions are CREATE_CASE, WARN_CUSTOMER, CLOSE_NO_FRAUD.",
     "written_to_graph": true,

@@ -49,10 +49,10 @@
     ],
     "similar_prior_cases": [
       "CC-4160",
-      "CC-5557",
-      "CC-5553",
-      "CC-5552",
-      "CC-5551"
+      "CC-1709",
+      "CC-4208",
+      "CC-3931",
+      "CC-0657"
     ],
     "summary": "The bank's model scored a $292.36 online purchase online on card C11891-K1 at 0.79. The bank's model scored the flagged transaction at 0.79; above 0.70 most flagged transactions in this book turn out legitimate. $292.36 is 9.7 standard deviations above this card's usual $44.66. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.96, with 292.36 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
     "written_to_graph": true,
@@ -103,5 +103,5 @@
   "stop_reason": "6: the cardholder's denial settles the question",
   "tool_calls": 10,
   "tokens": 0,
-  "latency_s": 1.29
+  "latency_s": 1.1
 }

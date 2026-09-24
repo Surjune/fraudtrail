@@ -121,6 +121,15 @@ class GraphClient:
             raise GraphError(f"could not read edge counts: {exc}") from exc
         return dict(counts) if isinstance(counts, dict) else {}
 
+    def upsert_vertices(self, vertex_type: str, rows: list[tuple[str, dict[str, Any]]]) -> int:
+        """Upsert many vertices at once, which is how vector attributes are written."""
+        if not rows:
+            return 0
+        try:
+            return int(self._conn.upsertVertices(vertex_type, rows))
+        except Exception as exc:
+            raise GraphError(f"upsert of {len(rows)} {vertex_type} vertices failed: {exc}") from exc
+
     def upsert_vertex(self, vertex_type: str, vertex_id: str, attributes: dict[str, Any]) -> int:
         try:
             return int(self._conn.upsertVertex(vertex_type, vertex_id, attributes))

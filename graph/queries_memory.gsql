@@ -7,14 +7,22 @@
 USE GRAPH FraudTrail
 
 # Closed cases whose analyst notes read like this situation, expanded to what they touched.
+# The search asks for more than it needs (overfetch) because the nearest notes may have
+# been written after the alert being investigated, and an investigation may only use what
+# the bank knew at the time. The caller keeps the k nearest of what survives that filter.
 CREATE OR REPLACE QUERY similar_closed_cases(LIST<FLOAT> query_vec, INT k = 5,
-    DATETIME before_ts = to_datetime("2017-01-01 00:00:00")) FOR GRAPH FraudTrail SYNTAX v2 {
+    DATETIME before_ts = to_datetime("2017-01-01 00:00:00"), INT overfetch = 4)
+    FOR GRAPH FraudTrail SYNTAX v2 {
   MapAccum<VERTEX, FLOAT> @@distance;
-  Hits = vectorSearch({ClosedCase.notes_emb}, query_vec, k, {distance_map: @@distance});
+  MapAccum<STRING, STRING> @@card_of;
+  Hits = vectorSearch({ClosedCase.notes_emb}, query_vec, k * overfetch,
+                      {distance_map: @@distance});
   Recent = SELECT cc FROM Hits:cc WHERE cc.opened_at < before_ts;
-  Cards = SELECT c FROM Recent:cc -(ON_CARD)- Card:c;
+  CaseCards = SELECT c FROM Recent:cc -(ON_CARD)- Card:c
+              ACCUM @@card_of += (cc.case_id -> c.card_id);
   Txns = SELECT t FROM Recent:cc -(INVOLVES)- Transaction:t;
-  PRINT Recent AS cases, @@distance AS distance, Cards AS cards, Txns AS transactions;
+  PRINT Recent AS cases, @@distance AS distance, @@card_of AS card_of,
+        Txns AS transactions;
 }
 
 # The closed-case corpus, read once so retrieval can rank it on the analysts' own words.

@@ -65,8 +65,8 @@
       "CC-4501",
       "CC-3905",
       "CC-3206",
-      "CC-5527",
-      "CC-5378"
+      "CC-5122",
+      "CC-2198"
     ],
     "summary": "Customer C11923 disputed a $131.30 online purchase online on card C11923-K2. The identity record marks the device as New for this account (SM-G610F Build/NRD90M |  | chrome 66.0 for android | ). $131.30 is 2.6 standard deviations above this card's usual $39.42. 10 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present new device. Assessed as fraud at 0.95, with 131.30 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
     "written_to_graph": true,
@@ -111,5 +111,5 @@
   "stop_reason": "6: probability 0.95 on 4 independent pieces of evidence is decisive",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 36.36
+  "latency_s": 30.88
 }

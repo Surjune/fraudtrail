@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fraudtrail.config import Settings
+from fraudtrail.config import Settings, load_settings
 from fraudtrail.evidence.models import (
     CardBaseline,
     DeviceReach,
@@ -29,6 +29,7 @@ from fraudtrail.evidence.models import (
 from fraudtrail.evidence.provider import EvidenceError
 from fraudtrail.evidence.similarity import keywords, most_similar
 from fraudtrail.graph.client import GraphClient, GraphError
+from fraudtrail.graphrag.embed import Embedder, EmbeddingError, LocalEmbedder
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +43,10 @@ EPOCH = "1970-01-01 00:00:00"
 # applies the date its own investigation is allowed to see.
 MAX_CLOSED_CASES = 8000
 CORPUS_UNTIL = "2030-01-01 00:00:00"
+
+# Vector search asks for this many times k, because hits opened after the alert are
+# dropped: an investigation may only use what the bank knew at the time.
+OVERFETCH = 4
 
 # "device:" prefixes every device element in shared_origin's map.
 DEVICE_PREFIX = "device:"
@@ -110,14 +115,24 @@ def _string_map(value: Any) -> dict[str, str]:
 class TigerGraphProvider:
     """One installed query per question, and no query run twice for the same answer."""
 
-    def __init__(self, client: GraphClient) -> None:
+    def __init__(self, client: GraphClient, embedder: Embedder | None = None) -> None:
         self._client = client
+        self._embedder = embedder
         self._closed: list[tuple[PriorCase, frozenset[str]]] = []
         self._closed_loaded = False
 
     @classmethod
     def from_env(cls, settings: Settings | None = None) -> TigerGraphProvider:
-        return cls(GraphClient.from_env(settings))
+        resolved = settings or load_settings()
+        embedder: Embedder | None
+        try:
+            embedder = LocalEmbedder(resolved.embedding_model)
+        except EmbeddingError as exc:
+            # Retrieval still works on words; it is search quality that degrades, and the
+            # run says so rather than pretending it did a vector search.
+            log.warning("no embedding model, memory retrieval falls back to words: %s", exc)
+            embedder = None
+        return cls(GraphClient.from_env(resolved), embedder)
 
     @property
     def client(self) -> GraphClient:
@@ -376,7 +391,42 @@ class TigerGraphProvider:
         self._closed_loaded = True
         log.info("closed-case memory: %d cases", len(self._closed))
 
+    def _vector_search(self, query: str, before: datetime, k: int) -> tuple[PriorCase, ...]:
+        """Closed cases whose analyst notes are nearest this situation in meaning.
+
+        TigerVector searches the notes, the graph expands each hit into the card it was
+        opened on, and the nearest k that predate the alert come back.
+        """
+        if self._embedder is None:
+            return ()
+        try:
+            vector = self._embedder.query(query)
+        except EmbeddingError as exc:
+            log.warning("could not embed the query, ranking on words instead: %s", exc)
+            return ()
+        result = self._run(
+            "similar_closed_cases",
+            {"query_vec": vector, "k": k, "before_ts": _param(before), "overfetch": OVERFETCH},
+        )
+        card_of = _string_map(result.get("card_of"))
+        distance = result.get("distance")
+        distances = distance if isinstance(distance, dict) else {}
+        hits = [
+            (
+                float(distances.get(str(v.get("v_id", "")), 1.0)),
+                self._prior_case(v, card_of, "similar"),
+            )
+            for v in _vertices(result.get("cases"))
+        ]
+        hits.sort(key=lambda item: item[0])
+        return tuple(case for _, case in hits[:k])
+
     def similar_cases(self, query: str, before: datetime, k: int = 5) -> tuple[PriorCase, ...]:
+        found = self._vector_search(query, before, k)
+        if found:
+            return found
+        # No vectors in the graph yet, or nothing near enough: the analysts' own words
+        # still retrieve the same kind of case.
         if not self._closed_loaded:
             self._load_closed_cases()
         return most_similar(query, self._closed, before, k)

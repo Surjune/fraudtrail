@@ -73,8 +73,8 @@
       "CC-3778",
       "CC-2121",
       "CC-1736",
-      "CC-3193",
-      "CC-5481"
+      "CC-5481",
+      "CC-1305"
     ],
     "summary": "Customer C08106 disputed a $128.33 online purchase online on card C08106-K1. The identity record marks the device as New for this account ( |  | firefox 47.0 | ). $128.33 is 3.3 standard deviations above this card's usual $35.31. 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. Assessed as fraud at 0.97, with 221.19 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
     "written_to_graph": true,
@@ -119,5 +119,5 @@
   "stop_reason": "6: probability 0.97 on 5 independent pieces of evidence is decisive",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 3.15
+  "latency_s": 3.34
 }

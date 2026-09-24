@@ -62,7 +62,8 @@
       "CC-5026",
       "CC-2860",
       "CC-2011",
-      "CC-2554"
+      "CC-2879",
+      "CC-1908"
     ],
     "summary": "The bank's model scored a $99.92 online purchase in billing region 264 on card C07987-K2 at 0.90. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | other | chrome 61.0 | 1280x720). 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use. Assessed as legitimate at 0.11, with 99.92 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
     "written_to_graph": true,
@@ -107,5 +108,5 @@
   "stop_reason": "6: probability 0.11 on 3 independent pieces of evidence is decisive",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 1.64
+  "latency_s": 3.97
 }

@@ -45,8 +45,8 @@
       "CC-5521",
       "CC-5092",
       "CC-4787",
-      "CC-5227",
-      "CC-4898"
+      "CC-0954",
+      "CC-3092"
     ],
     "summary": "The bank's model scored a $111.92 in-person purchase in billing region 264 on card C09933-K2 at 0.87. The bank's model scored the flagged transaction at 0.87; above 0.70 most flagged transactions in this book turn out legitimate. 18 closed case(s) on this card or its owner's cards were confirmed fraud, most often out of region use. The cardholder was asked to validate the activity and confirmed it as their own. Assessed as legitimate at 0.05, with 0.00 USD exposure; recommended actions are CREATE_CASE, ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
     "written_to_graph": true,
@@ -102,5 +102,5 @@
   "stop_reason": "6: the cardholder's confirmation settles the question",
   "tool_calls": 10,
   "tokens": 0,
-  "latency_s": 2.23
+  "latency_s": 2.07
 }

@@ -49,9 +49,9 @@
     "similar_prior_cases": [
       "CC-2370",
       "CC-0003",
-      "CC-5537",
-      "CC-5504",
-      "CC-5492"
+      "CC-0362",
+      "CC-0994",
+      "CC-4197"
     ],
     "summary": "The bank's model scored a $30.91 in-person purchase in billing region 494 on card C05876-K2 at 0.55. 1 closed case(s) on this card or its owner's cards were confirmed fraud, most often card not present fraud. 1 earlier alert(s) on this card were cleared when the cardholder confirmed travel to the flagged region. The same amount ($30.91 \u00b1 $0.15) and product code appear 22 times across 5 months on this card. Assessed as legitimate at 0.09, with 0.00 USD exposure; recommended actions are ALLOW_TRANSACTION, CLOSE_NO_FRAUD.",
     "written_to_graph": true,
@@ -96,5 +96,5 @@
   "stop_reason": "6: probability 0.09 on 2 independent pieces of evidence is decisive",
   "tool_calls": 10,
   "tokens": 0,
-  "latency_s": 1.53
+  "latency_s": 2.59
 }

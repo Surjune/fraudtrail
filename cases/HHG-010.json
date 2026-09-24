@@ -59,10 +59,10 @@
     ],
     "similar_prior_cases": [
       "CC-0873",
-      "CC-5263",
-      "CC-5217",
-      "CC-4523",
-      "CC-4362"
+      "CC-2675",
+      "CC-0249",
+      "CC-2879",
+      "CC-2531"
     ],
     "summary": "The bank's model scored a $1,000.03 online purchase in billing region 469 on card C10434-K1 at 0.90. The bank's model scored the flagged transaction at 0.90; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows | Windows 10 | edge 16.0 | 1366x768). $1,000.03 is 4.9 standard deviations above this card's usual $131.25. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.93, with 1,000.03 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE, FILE_REPORT.",
     "written_to_graph": true,
@@ -130,5 +130,5 @@
   "stop_reason": "6: the cardholder's denial settles the question",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 1.23
+  "latency_s": 1.18
 }

@@ -53,9 +53,9 @@
     "similar_prior_cases": [
       "CC-2447",
       "CC-2277",
-      "CC-5285",
-      "CC-5111",
-      "CC-4943"
+      "CC-2989",
+      "CC-0241",
+      "CC-3368"
     ],
     "summary": "The bank's model scored a $125.08 online purchase in billing region 264 on card C12265-K2 at 0.52. The identity record marks the device as New for this account (Trident/7.0 | Windows 10 | ie 11.0 for desktop | 1920x1080). Product code R has never been used on this card in 82 prior transactions. 2 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. The cardholder was asked to validate the activity and denied it. Assessed as fraud at 0.97, with 125.08 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
     "written_to_graph": true,
@@ -106,5 +106,5 @@
   "stop_reason": "6: the cardholder's denial settles the question",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 0.89
+  "latency_s": 1.03
 }

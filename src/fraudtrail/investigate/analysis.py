@@ -511,11 +511,17 @@ def memory_query(detection: Detection) -> str:
 
 
 def with_similar_cases(detection: Detection, retrieved: tuple[PriorCase, ...]) -> Detection:
-    """Add retrieved look-alikes to the cases this investigation cites."""
+    """Add retrieved look-alikes to the cases this investigation cites.
+
+    Cases the bank labelled with the same pattern come first, then the nearest of the
+    rest in the order retrieval ranked them. Requiring the label to match exactly cited
+    nothing at all on an undocumented pattern, which is the case where reading the
+    nearest closed cases matters most.
+    """
     chosen = list(detection.similar_cases)
-    for case in retrieved:
-        if case.case_id in chosen:
-            continue
-        if detection.pattern is Pattern.NONE or case.pattern == detection.pattern.value:
-            chosen.append(case.case_id)
+    same_pattern = [c.case_id for c in retrieved if c.pattern == detection.pattern.value]
+    others = [c.case_id for c in retrieved if c.pattern != detection.pattern.value]
+    for case_id in (*same_pattern, *others):
+        if case_id not in chosen:
+            chosen.append(case_id)
     return replace(detection, similar_cases=tuple(chosen[:5]))

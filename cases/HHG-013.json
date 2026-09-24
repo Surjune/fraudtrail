@@ -56,7 +56,9 @@
     "similar_prior_cases": [
       "CC-4294",
       "CC-3216",
-      "CC-1475"
+      "CC-1475",
+      "CC-2717",
+      "CC-3812"
     ],
     "summary": "The bank's model scored a $35.66 online purchase online on card C07671-K2 at 0.76. The bank's model scored the flagged transaction at 0.76; above 0.70 most flagged transactions in this book turn out legitimate. The identity record marks the device as New for this account (Windows |  | chrome 66.0 | ). 3 closed case(s) on this card or its owner's cards were confirmed fraud, most often account takeover. Assessed as fraud at 0.85, with 699.62 USD exposure; recommended actions are BLOCK_CARD, CREATE_CASE.",
     "written_to_graph": true,
@@ -101,5 +103,5 @@
   "stop_reason": "6: probability 0.85 on 3 independent pieces of evidence is decisive",
   "tool_calls": 11,
   "tokens": 0,
-  "latency_s": 1.57
+  "latency_s": 1.78
 }
