@@ -90,8 +90,17 @@ def graph_client() -> GraphClient:
     return GraphClient.from_env()
 
 
+def cases_stamp() -> float:
+    """When the answer files last changed.
+
+    The caches below take it as an argument, so a new run of the agent shows up on the next
+    page load instead of being served from a cache filled before it.
+    """
+    return max((p.stat().st_mtime for p in CASES_DIR.glob("HHG-*.json")), default=0.0)
+
+
 @st.cache_data
-def load_answers() -> dict[str, Answer]:
+def load_answers(stamp: float) -> dict[str, Answer]:
     answers: dict[str, Answer] = {}
     for path in sorted(CASES_DIR.glob("HHG-*.json")):
         answers[path.stem] = Answer.model_validate(json.loads(path.read_text(encoding="utf-8")))
@@ -99,7 +108,7 @@ def load_answers() -> dict[str, Answer]:
 
 
 @st.cache_data(show_spinner="Reading the case from the graph…")
-def read_case(case_id: str) -> dict[str, Any]:
+def read_case(case_id: str, stamp: float) -> dict[str, Any]:
     return dict(graph_memory().read(case_id))
 
 
@@ -202,32 +211,40 @@ def show_navigation() -> str:
     return str(view)
 
 
+def stat(name: str, value: str, tone: str = "") -> str:
+    return f"<div class='ft-stat {tone}'><span>{escape(name)}</span><b>{escape(value)}</b></div>"
+
+
 def show_case_header(answer: Answer) -> None:
     verdict = answer.case.verdict.value
     pattern = answer.case.pattern.value.replace("_", " ")
-    st.html(
-        f"<div><span class='ft-case-id'>{escape(answer.case_id)}</span>"
-        f"<span class='ft-verdict {escape(verdict)}'>{escape(verdict)}</span>"
-        f"<span class='ft-pattern'>{escape(pattern)}</span></div>"
-    )
-    st.write(md(answer.case.summary))
-    left, middle, right, far = st.columns(4)
-    left.metric("Fraud probability", f"{answer.case.fraud_probability:.2f}")
-    middle.metric("Exposure", money(answer.case.exposure_usd))
-    right.metric("Connected cards", len(answer.case.connected_card_ids))
-    far.metric("Evidence queries", answer.tool_calls)
-    written = "yes" if answer.case.written_to_graph else "no"
-    st.html(
-        "<div class='ft-strip'>"
-        f"<div><span>Written to graph</span><b>{written}</b></div>"
-        f"<div><span>Latency</span><b>{answer.latency_s:.2f}s</b></div>"
-        f"<div><span>Model tokens</span><b>{answer.tokens:,}</b></div>"
-        f"<div><span>Evidence requests</span><b>{len(answer.evidence_requests)}</b></div>"
-        f"<div><span>Report</span><b>{'filed' if answer.sar.file else 'none'}</b></div>"
-        "</div>"
-    )
-    if answer.case.pattern_description:
-        st.info(md(f"**Undocumented pattern.** {answer.case.pattern_description}"))
+    text, figures = st.columns([1.3, 1], gap="large")
+    with text:
+        st.html(
+            f"<div class='ft-case-head'><span class='ft-case-id'>{escape(answer.case_id)}</span>"
+            f"<span class='ft-verdict {escape(verdict)}'>{escape(verdict)}</span>"
+            f"<span class='ft-pattern'>{escape(pattern)}</span></div>"
+        )
+        st.write(md(answer.case.summary))
+        if answer.case.pattern_description:
+            st.info(md(f"**Undocumented pattern.** {answer.case.pattern_description}"))
+    with figures:
+        tone = "hot" if verdict == "fraud" else "cool"
+        written = "yes" if answer.case.written_to_graph else "no"
+        st.html(
+            "<div class='ft-stats'>"
+            + stat("Fraud probability", f"{answer.case.fraud_probability:.2f}", tone)
+            + stat("Exposure", money(answer.case.exposure_usd))
+            + stat("Connected cards", str(len(answer.case.connected_card_ids)))
+            + stat("Evidence queries", str(answer.tool_calls))
+            + "</div><div class='ft-strip'>"
+            f"<div><span>In graph</span><b>{written}</b></div>"
+            f"<div><span>Latency</span><b>{answer.latency_s:.2f}s</b></div>"
+            f"<div><span>Tokens</span><b>{answer.tokens:,}</b></div>"
+            f"<div><span>Asked</span><b>{len(answer.evidence_requests)}</b></div>"
+            f"<div><span>Report</span><b>{'filed' if answer.sar.file else 'none'}</b></div>"
+            "</div>"
+        )
 
 
 def show_case_pack(answers: dict[str, Answer], current: str) -> None:
@@ -325,7 +342,7 @@ def show_evidence(answer: Answer) -> None:
 def show_progression(case_id: str) -> None:
     st.subheader("Case progression")
     st.caption("Read back from the graph: every step this investigation took, in order.")
-    stored = read_case(case_id)
+    stored = read_case(case_id, cases_stamp())
     events = stored.get("events")
     if not isinstance(events, list) or not events:
         st.warning("This case is not in the graph yet. Run scripts/run_agent.py.")
@@ -349,7 +366,12 @@ def show_report(answer: Answer) -> None:
         st.success(md(f"No report required. {answer.sar.reason}"))
         return
     st.error(md(f"**Report required.** {answer.sar.reason}"))
-    st.metric("Total amount", money(answer.sar.total_amount_usd))
+    st.html(
+        "<div class='ft-stats'>"
+        + stat("Total amount", money(answer.sar.total_amount_usd), "hot")
+        + stat("Subjects", str(len(answer.sar.subjects)))
+        + "</div>"
+    )
     st.markdown(f"**Activity dates:** {' to '.join(answer.sar.activity_dates)}")
     st.markdown(f"**Subjects:** {', '.join(answer.sar.subjects)}")
     st.markdown("**Narrative**")
@@ -359,14 +381,16 @@ def show_report(answer: Answer) -> None:
 def show_case_view(answers: dict[str, Answer]) -> None:
     case_ids = list(answers)
     requested = st.query_params.get("case", "")
-    main, side = st.columns([3, 1])
+    main, side = st.columns([3.3, 1], gap="medium")
     with side, st.container(key="panel_pack"):
+        label("Case")
         case_id = str(
             st.selectbox(
                 "Case",
                 case_ids,
                 index=case_ids.index(requested) if requested in case_ids else 0,
                 format_func=lambda c: f"{c} — {answers[c].case.verdict.value}",
+                label_visibility="collapsed",
             )
         )
         st.query_params["case"] = case_id
@@ -444,7 +468,7 @@ def main() -> None:
     )
     apply_theme()
     settings = load_settings()
-    answers = load_answers()
+    answers = load_answers(cases_stamp())
     show_masthead(settings, answers)
     view = show_navigation()
     if view == "Queue":

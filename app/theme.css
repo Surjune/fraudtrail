@@ -3,11 +3,12 @@
  *
  * The event poster's palette and type: deep forest green, bright yellow display type in
  * Bodoni, hot pink accent, cream text, JetBrains Mono for the wide-tracked uppercase
- * labels. The beach illustration sits behind everything, knocked back by a scrim so the
+ * labels. Figures are set in Inter with tabular digits: Bodoni's hairline dollar sign and
+ * old-style numerals are for headlines, not for amounts an analyst has to read. The beach illustration sits behind everything, knocked back by a scrim so the
  * case text in front of it stays readable.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,700;6..96,900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,700;6..96,900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --void: #0b4a2f;
@@ -22,6 +23,7 @@
   --faint: rgba(209, 250, 229, 0.4);
   --display: 'Bodoni Moda', 'Playfair Display', Georgia, serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --figures: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* ---- Ground: the beach illustration behind a scrim ------------------------------ */
@@ -48,8 +50,8 @@
 }
 
 [data-testid="stMainBlockContainer"] {
-  padding-top: 1.25rem;
-  max-width: 1280px;
+  padding: 1.25rem 2.5rem 3rem;
+  max-width: 1760px;
 }
 
 /* ---- Header -------------------------------------------------------------------- */
@@ -224,6 +226,12 @@
 
 /* ---- Panels ---------------------------------------------------------------------- */
 
+/* The case pack stays in view while a long case scrolls past it. */
+.st-key-panel_pack {
+  position: sticky;
+  top: 1rem;
+}
+
 [class*="st-key-panel"] {
   background: color-mix(in srgb, var(--panel) 90%, transparent);
   border: 1px solid color-mix(in srgb, var(--edge) 70%, transparent);
@@ -261,6 +269,14 @@ h1, h2, h3 {
   font-size: 2.1rem;
   color: var(--goa-yellow);
   line-height: 1;
+}
+
+.ft-case-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-bottom: 0.4rem;
 }
 
 .ft-verdict {
@@ -301,15 +317,54 @@ h1, h2, h3 {
 }
 
 [data-testid="stMetricValue"] {
-  font-family: var(--display);
-  font-weight: 700;
+  font-family: var(--figures);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--goa-cream);
 }
+
+/* The headline figures of a case, as a grid of cards. */
+.ft-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ft-stat {
+  background: rgba(4, 23, 15, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.75rem;
+  padding: 0.9rem 1.1rem 1rem;
+}
+
+.ft-stat span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ft-stat b {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--figures);
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--goa-cream);
+}
+
+.ft-stat.hot b { color: var(--goa-pink); }
+.ft-stat.cool b { color: #6ee7b7; }
 
 /* A strip of small measured figures, like the playground's stage timings. */
 .ft-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.5rem;
   background: rgba(4, 23, 15, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -328,7 +383,9 @@ h1, h2, h3 {
 }
 
 .ft-strip div b {
-  font-family: var(--mono);
+  font-family: var(--figures);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   font-size: 0.85rem;
   color: var(--goa-cream);
 }
@@ -459,15 +516,16 @@ p code, li code {
 
 /* The case pack: every exam case as a chip, like the playground's suggested questions. */
 .ft-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 0.45rem;
   margin-top: 0.2rem;
 }
 
 .ft-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.4rem;
   padding: 0.28rem 0.65rem;
   border-radius: 999px;
@@ -480,6 +538,8 @@ p code, li code {
 }
 
 .ft-chip:hover { border-color: var(--goa-yellow); color: var(--goa-yellow) !important; }
+
+.ft-chip span { margin-right: auto; }
 
 .ft-chip i {
   font-style: normal;
