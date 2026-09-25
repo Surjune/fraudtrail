@@ -7,7 +7,7 @@ must approve it. Every finished case is written back into the graph as memory fo
 
 Built for the TigerGraph × Hacker House Goa challenge on the HHGOA_IEEE dataset.
 
-![A finished investigation, read back from the graph](docs/images/case-view.png)
+![A finished investigation and its neighbourhood, read back from the graph](docs/images/case-view.png)
 
 ## Contents
 
@@ -173,11 +173,23 @@ from the bank's history cited as precedent.
 uv run streamlit run app/dashboard.py
 ```
 
-Every case is read back out of the graph rather than from the answer files, in five tabs: how
-it progressed step by step, the evidence it rests on, how uncertain the agent was and what it
-asked for, what it recommends before and after that evidence, and the report when policy calls
-for one. `?case=HHG-014` opens a case directly, so one can be shared as a link. The case pack
+Every case is read back out of the graph rather than from the answer files, in six tabs: where
+it sits in the graph, how it progressed step by step, the evidence it rests on, how uncertain
+the agent was and what it asked for, what it recommends before and after that evidence, and the
+report when policy calls for one. `?case=HHG-014` opens a case directly, so one can be shared as a link. The case pack
 beside it lists all twenty, marked by verdict.
+
+The **investigation graph** (the first tab, shown at the top of this page) draws the case's
+neighbourhood, read by one installed query, `case_graph`: the card the case was opened on and
+its owner, the transactions it flagged with the device and billing region of each, the linked
+cards, and the closed cases it drew on. Solid lines are evidence stored in the graph; dashed
+yellow lines are the links the investigation wrote when it closed the case, drawn only where the
+evidence gives no path of its own. In HHG-014 that puts the ring in plain sight: nineteen cards
+around one device, joined to the card under investigation through the two purchases made from
+it. Nodes can be dragged and zoomed, and hovering or tapping one shows its details. On a phone
+the drawing waits behind a "Tap to explore" cover, so the page still scrolls.
+
+![Every step of HHG-014, read back from its CaseEvent trail](docs/images/case-progression.png)
 
 It wears the Hacker House Goa 2026 theme: the event poster's forest green, yellow and pink,
 Bodoni display type, and the Goa beach illustration behind the panels. The palette lives in
@@ -217,6 +229,7 @@ each carry a 384-dimension embedding (BAAI/bge-small-en-v1.5, computed locally).
 | `similar_closed_cases`, `similar_investigations` | Vector search over past cases, then a hop to the card each was opened on |
 | `doc_search`, `closed_case_notes` | Vector search over the policy, patterns and references; the notes corpus |
 | `write_case`, `write_case_event`, `read_case` | Case memory: write an investigation back and read it again |
+| `case_graph` | The investigation's neighbourhood, for the dashboard's graph |
 
 ## Results
 
@@ -293,7 +306,7 @@ nothing in fraud recall.
   still produces twenty complete, valid answers from templates. A free tier caps each model at a
   few requests a day, so `FRAUDTRAIL_LLM_MODEL` takes several models separated by commas and the
   run moves to the next when one is spent.
-- **76 unit tests**, `ruff` and `mypy --strict` clean.
+- **86 unit tests**, `ruff` and `mypy --strict` clean.
 
 ## Running it
 
@@ -359,12 +372,12 @@ uv run ruff check . && uv run mypy --strict src scripts && uv run pytest
 | `src/fraudtrail/policy/` | The Fraud Policy as code: actions, routes, thresholds, rules R1–R10 |
 | `src/fraudtrail/investigate/` | Detectors, scoring, evidence gathering, the investigation loop |
 | `src/fraudtrail/evidence/` | One interface, two sources: TigerGraph and the local warehouse |
-| `src/fraudtrail/graph/` | TigerGraph client, the MCP client, and case write-back |
+| `src/fraudtrail/graph/` | TigerGraph client, the MCP client, case write-back, and the case graph |
 | `src/fraudtrail/graphrag/` | The document corpus and local embeddings |
 | `src/fraudtrail/answer/` | Answer schema, validation, and the narrators |
 | `src/fraudtrail/llm/` | Three providers over plain HTTP, no SDKs |
 | `src/fraudtrail/evaluate/` | Replaying closed cases and scoring the agent against them |
-| `app/dashboard.py` | The analyst dashboard |
+| `app/dashboard.py` | The analyst dashboard; `app/case_graph.html` draws the investigation graph |
 | `graph/` | Schema, vector attributes, loading job, and the installed queries |
 | `scripts/` | Profile, export, load, install, embed, run, evaluate |
 | `cases/` | One answer file per exam case |

@@ -1,0 +1,264 @@
+<!doctype html>
+<!--
+  The investigation graph, drawn with vis-network inside the dashboard.
+  dashboard.py replaces __GRAPH__ with the nodes and edges from case_graph.draw.
+  Every value is written into the page as text, never as markup.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/10.1.2/standalone/umd/vis-network.min.js"
+        integrity="sha512-72kDhKs6XZBRuZiKolTT7OPsPzEd9KdAyeDXcYqIw4pKNoc1rpmBpKXTiitf55xARkiu/+jLQdOfQdxD1fmITg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+  :root {
+    --green-deep: #073a24;
+    --panel: #08351f;
+    --edge: #1c6b44;
+    --goa-yellow: #f5d914;
+    --goa-cream: #f7f3e3;
+    --muted: rgba(209, 250, 229, 0.62);
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    --figures: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  html, body { margin: 0; height: 100%; background: transparent; }
+  /* Hint, drawing and legend each have a row, so the legend never sits over a node. */
+  .frame {
+    position: relative; height: 100vh; box-sizing: border-box; overflow: hidden;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--edge); border-radius: 14px;
+    background: radial-gradient(circle at 50% 42%, #0f5c39 0%, var(--panel) 72%);
+  }
+  #net { position: relative; flex: 1; min-height: 0; }
+  .hint {
+    min-height: 14px; padding: 12px 14px 0;
+    font: 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  }
+  .hint[hidden] { display: block; visibility: hidden; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 12px 10px;
+    border-top: 1px solid rgba(28, 107, 68, 0.6);
+    font: 11px var(--mono); color: var(--muted);
+  }
+  .legend span { white-space: nowrap; }
+  .legend i {
+    display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px;
+    vertical-align: -1px;
+  }
+  .legend i.line { width: 18px; height: 0; border-radius: 0; vertical-align: 3px; }
+  #details {
+    position: absolute; top: 12px; right: 12px; box-sizing: border-box;
+    width: min(300px, calc(100% - 24px)); max-height: calc(100% - 64px); overflow: auto;
+    padding: 12px 14px; border: 1px solid var(--edge); border-radius: 10px;
+    background: rgba(7, 58, 36, 0.96); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    color: var(--goa-cream); font: 12px var(--figures);
+  }
+  #details[hidden], #cover[hidden], #done[hidden] { display: none; }
+  #details .kind {
+    margin-bottom: 4px; color: var(--goa-yellow);
+    font: 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  #details h3 { margin: 0 24px 10px 0; font: 600 13px var(--mono); overflow-wrap: anywhere; }
+  #details dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+  #details dt { color: var(--muted); }
+  #details dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  #details .close {
+    position: absolute; top: 6px; right: 8px; border: 0; background: none; cursor: pointer;
+    color: var(--muted); font-size: 18px; line-height: 1;
+  }
+  #cover {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(7, 58, 36, 0.3);
+  }
+  .pill {
+    border: 0; border-radius: 999px; padding: 12px 20px; cursor: pointer;
+    background: var(--goa-yellow); color: var(--green-deep);
+    font: 600 12px var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  #done { position: absolute; top: 8px; left: 8px; padding: 8px 14px; }
+  /* A phone: the details open below the Done button rather than over it. */
+  @media (max-width: 480px) {
+    #details { top: 48px; max-height: calc(100% - 100px); }
+    .legend { gap: 4px 10px; font-size: 10px; }
+  }
+  .unavailable {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; color: var(--muted); font: 13px var(--figures);
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="hint" id="hint">Drag, zoom, and hover or tap a node</div>
+  <div id="net" role="img" aria-label="Investigation graph"></div>
+  <aside id="details" hidden aria-live="polite">
+    <button class="close" type="button" aria-label="Close">&times;</button>
+    <div class="kind"></div>
+    <h3></h3>
+    <dl></dl>
+  </aside>
+  <div class="legend" id="legend"></div>
+  <div id="cover" hidden><button class="pill" type="button">Tap to explore</button></div>
+  <button class="pill" id="done" type="button" hidden>Done</button>
+</div>
+<script>
+const graph = __GRAPH__;
+
+const CREAM = '#f7f3e3';
+const YELLOW = '#f5d914';
+const PINK = '#ff1e8c';
+const FONT = { color: CREAM, size: 11, face: 'JetBrains Mono, monospace' };
+
+// One entry per node kind in case_graph.Kind: how it is drawn and what the legend calls it.
+const GROUPS = {
+  case: { name: 'This investigation', swatch: YELLOW, shape: 'star', size: 22,
+          color: YELLOW, font: { ...FONT, color: YELLOW, size: 13 } },
+  card: { name: 'Card under investigation', swatch: CREAM, shape: 'box', margin: 8,
+          color: { background: CREAM, border: CREAM }, font: { ...FONT, color: '#073a24', size: 12 } },
+  owner: { name: 'Cardholder', swatch: '#9be7b8', shape: 'dot', size: 12, color: '#9be7b8', font: FONT },
+  owner_card: { name: "Cardholder's other cards", swatch: '#0f5c39', shape: 'box', margin: 6,
+                color: { background: '#0f5c39', border: '#9be7b8' }, font: FONT },
+  linked_card: { name: 'Linked card', swatch: '#4a1030', shape: 'box', margin: 5,
+                 color: { background: '#4a1030', border: PINK }, font: { ...FONT, size: 10 } },
+  flagged: { name: 'Flagged transaction', swatch: PINK, shape: 'diamond', size: 16,
+             color: PINK, font: { ...FONT, color: '#ffb3d6', size: 12 } },
+  transaction: { name: 'Affected transaction', swatch: '#ff8cc6', shape: 'dot', size: 10,
+                 color: '#ff8cc6', font: FONT },
+  device: { name: 'Device profile', swatch: '#ffa64d', shape: 'hexagon', size: 18,
+            color: '#ffa64d', font: FONT },
+  region: { name: 'Billing region', swatch: '#5fbf8f', shape: 'dot', size: 7, color: '#5fbf8f', font: FONT },
+  closed_case: { name: 'Closed case drawn on', swatch: '#c9b8ff', shape: 'triangle', size: 11,
+                 color: '#c9b8ff', font: FONT },
+};
+
+const RELATIONS = {
+  OWNS: 'owns', MADE: 'made', FROM_DEVICE: 'from device', BILLED_IN: 'billed in',
+  USED_DEVICE: 'made transactions from this device', ON_CARD: 'opened on this card',
+  INV_ON_CARD: 'case opened on this card', INV_SIMILAR_CLOSED: 'case drew on this closed case',
+  INV_CONNECTED_CARD: 'case connected this card', INV_DEVICE: 'case named this device',
+  INV_FLAGGED: 'case flagged this transaction', INV_AFFECTS: 'case affects this transaction',
+};
+
+const frame = document.querySelector('.frame');
+const box = document.getElementById('details');
+
+function text(tag, value) {
+  const el = document.createElement(tag);
+  el.textContent = value;
+  return el;
+}
+
+function legend() {
+  const present = new Set(graph.nodes.map((n) => n.group));
+  const out = document.getElementById('legend');
+  for (const [group, style] of Object.entries(GROUPS)) {
+    if (!present.has(group)) continue;
+    const item = text('span', style.name);
+    const mark = document.createElement('i');
+    mark.style.background = style.swatch;
+    mark.style.border = `1px solid ${style.color.border || style.swatch}`;
+    item.prepend(mark);
+    out.append(item);
+  }
+  const lines = [['Evidence in the graph', 'solid', 'rgba(247,243,227,.55)'],
+                 ["The case's own link", 'dashed', YELLOW]];
+  for (const [name, style, colour] of lines) {
+    const item = text('span', name);
+    const mark = document.createElement('i');
+    mark.className = 'line';
+    mark.style.borderTop = `2px ${style} ${colour}`;
+    item.prepend(mark);
+    out.append(item);
+  }
+}
+
+function show(node) {
+  box.querySelector('.kind').textContent = GROUPS[node.group].name;
+  box.querySelector('h3').textContent = node.label.replace('\n', '  ');
+  const rows = box.querySelector('dl');
+  rows.replaceChildren();
+  for (const [name, value] of node.details) rows.append(text('dt', name), text('dd', value));
+  box.hidden = false;
+}
+
+function draw() {
+  if (!window.vis) {
+    frame.append(text('div', 'The graph drawing could not load. Check that cdnjs.cloudflare.com is reachable.'));
+    frame.lastChild.className = 'unavailable';
+    return;
+  }
+  legend();
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const nodes = graph.nodes.map((n) => ({ id: n.id, label: n.label, group: n.group }));
+  const edges = graph.edges.map((e) => ({
+    from: e.from, to: e.to, title: RELATIONS[e.relation] || e.relation,
+    dashes: e.caseLink,
+    color: e.caseLink
+      ? { color: YELLOW, highlight: YELLOW, hover: YELLOW, opacity: 0.8 }
+      : { color: 'rgba(247,243,227,.4)', highlight: CREAM, hover: CREAM },
+    width: e.caseLink ? 1.4 : 1.2,
+  }));
+  const groups = Object.fromEntries(
+    Object.entries(GROUPS).map(([group, { name, swatch, ...style }]) => [group, style]));
+  const net = new vis.Network(
+    document.getElementById('net'),
+    { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) },
+    {
+      groups,
+      // A fixed seed: the same case is laid out the same way on every visit.
+      layout: { randomSeed: 7 },
+      interaction: { hover: true, zoomView: true, dragView: true, tooltipDelay: 150 },
+      physics: {
+        stabilization: { iterations: 400 },
+        barnesHut: { gravitationalConstant: -5200, springLength: 120, avoidOverlap: 0.2 },
+      },
+      edges: { smooth: { type: 'continuous' } },
+    });
+  net.once('stabilizationIterationsDone', () => {
+    net.setOptions({ physics: false });
+    net.fit({ animation: false });
+  });
+  let pinned = false;
+  net.on('click', (event) => {
+    pinned = event.nodes.length > 0;
+    if (pinned) show(byId.get(event.nodes[0]));
+    else box.hidden = true;
+  });
+  net.on('hoverNode', (event) => { if (!pinned) show(byId.get(event.node)); });
+  net.on('blurNode', () => { if (!pinned) box.hidden = true; });
+  box.querySelector('.close').addEventListener('click', () => { pinned = false; box.hidden = true; });
+  // The frame is sized after the drawing starts; the canvas is resized first, then refit.
+  const area = document.getElementById('net');
+  new ResizeObserver(() => {
+    net.setSize(`${area.clientWidth}px`, `${area.clientHeight}px`);
+    net.redraw();
+    net.fit({ animation: false });
+  }).observe(area);
+
+  // On a touch screen the drawing would swallow the swipes that scroll the page, so it sits
+  // behind a cover until asked for, and goes back behind it when done.
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    const cover = document.getElementById('cover');
+    const done = document.getElementById('done');
+    const hint = document.getElementById('hint');
+    hint.textContent = 'Pinch to zoom, tap a node';
+    cover.hidden = false;
+    cover.querySelector('button').addEventListener('click', () => {
+      cover.hidden = true; hint.hidden = true; done.hidden = false;
+    });
+    done.addEventListener('click', () => {
+      cover.hidden = false; hint.hidden = false; done.hidden = true; box.hidden = true;
+      pinned = false;
+      net.fit({ animation: false });
+    });
+  }
+}
+
+draw();
+</script>
+</body>
+</html>

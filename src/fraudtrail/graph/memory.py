@@ -205,9 +205,17 @@ class GraphMemory:
 
     def read(self, case_id: str) -> dict[str, object]:
         """Everything the graph holds about one investigation, for the UI and for checks."""
-        blocks = self._client.run_query("read_case", {"case_id": (case_id,)})
-        merged: dict[str, object] = {}
-        for block in blocks:
-            if isinstance(block, dict):
-                merged.update(block)
-        return merged
+        return _merged(self._client.run_query("read_case", {"case_id": (case_id,)}))
+
+    def neighbourhood(self, case_id: str) -> dict[str, object]:
+        """The investigation and the evidence around it, for drawing; see case_graph.draw."""
+        return _merged(self._client.run_query("case_graph", {"case_id": (case_id,)}))
+
+
+def _merged(blocks: list[object]) -> dict[str, object]:
+    """A query's PRINT blocks as one mapping."""
+    merged: dict[str, object] = {}
+    for block in blocks:
+        if isinstance(block, dict):
+            merged.update(block)
+    return merged

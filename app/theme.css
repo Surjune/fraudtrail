@@ -632,3 +632,12 @@ p code, li code {
   .ft-step { grid-template-columns: 1.7rem 1fr; row-gap: 0.15rem; }
   .ft-step .k, .ft-step .d { grid-column: 2; }
 }
+
+/* ---- Investigation graph: the counts above the drawing -------------------------- */
+
+.ft-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.7rem;
+}

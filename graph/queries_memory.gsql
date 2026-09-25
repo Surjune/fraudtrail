@@ -105,3 +105,46 @@ CREATE OR REPLACE QUERY read_case(VERTEX<InvestigationCase> case_id) FOR GRAPH F
   PRINT Seed AS investigation, Events AS events, Affected AS affected,
         Connected AS connected_cards, Prior AS prior_cases;
 }
+
+# One investigation and the evidence around it, for the dashboard's graph: the card it was
+# opened on and its owner, the owner's other cards, the transactions it flagged and affected
+# with the device and billing region of each, the linked cards and the case device each one
+# used, and the closed cases it drew on with the card each was opened on.
+CREATE OR REPLACE QUERY case_graph(VERTEX<InvestigationCase> case_id, INT max_owner_cards = 25)
+    FOR GRAPH FraudTrail SYNTAX v2 {
+  MapAccum<STRING, STRING> @@card_of;
+  MapAccum<STRING, STRING> @@device_of;
+  MapAccum<STRING, STRING> @@region_of;
+  MapAccum<STRING, STRING> @@closed_case_card;
+  MapAccum<STRING, SetAccum<STRING>> @@linked_on_device;
+  OrAccum @on_case;
+  MinAccum<STRING> @linked_card;
+  Seed = {case_id};
+  CaseCard = SELECT c FROM Seed:i -(INV_ON_CARD)- Card:c;
+  Owner = SELECT cu FROM CaseCard:c -(OWNS)- Customer:cu;
+  OwnerCards = SELECT c FROM Owner:cu -(OWNS)- Card:c ORDER BY c.card_id ASC
+               LIMIT max_owner_cards;
+  Flagged = SELECT t FROM Seed:i -(INV_FLAGGED)- Transaction:t;
+  Affected = SELECT t FROM Seed:i -(INV_AFFECTS)- Transaction:t;
+  Txns = Flagged UNION Affected;
+  TxnCards = SELECT c FROM Txns:t -(MADE)- Card:c ACCUM @@card_of += (t.txn_id -> c.card_id);
+  TxnDevices = SELECT d FROM Txns:t -(FROM_DEVICE)- DeviceProfile:d
+               ACCUM @@device_of += (t.txn_id -> d.profile_id);
+  CaseDevices = SELECT d FROM Seed:i -(INV_DEVICE)- DeviceProfile:d;
+  Devices = TxnDevices UNION CaseDevices;
+  Devices = SELECT d FROM Devices:d POST-ACCUM d.@on_case += TRUE;
+  Regions = SELECT r FROM Txns:t -(BILLED_IN)- BillingRegion:r
+            ACCUM @@region_of += (t.txn_id -> r.region);
+  Linked = SELECT c FROM Seed:i -(INV_CONNECTED_CARD)- Card:c;
+  LinkedTxns = SELECT t FROM Linked:c -(MADE)- Transaction:t ACCUM t.@linked_card += c.card_id;
+  Shared = SELECT d FROM LinkedTxns:t -(FROM_DEVICE)- DeviceProfile:d WHERE d.@on_case
+           ACCUM @@linked_on_device += (d.profile_id -> t.@linked_card);
+  Prior = SELECT cc FROM Seed:i -(INV_SIMILAR_CLOSED)- ClosedCase:cc;
+  PriorCards = SELECT c FROM Prior:cc -(ON_CARD)- Card:c
+               ACCUM @@closed_case_card += (cc.case_id -> c.card_id);
+  PRINT Seed AS investigation, CaseCard AS card, Owner AS owner, OwnerCards AS owner_cards,
+        Flagged AS flagged, Affected AS affected, Devices AS devices, Regions AS regions,
+        Linked AS linked_cards, Prior AS prior_cases, @@card_of AS card_of,
+        @@device_of AS device_of, @@region_of AS region_of,
+        @@linked_on_device AS linked_on_device, @@closed_case_card AS closed_case_card;
+}

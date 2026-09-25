@@ -7,7 +7,8 @@ same way the next investigation retrieves it.
 
 Four things the round asks to be visible are each given their own place: how the case
 progressed, what evidence it rests on, how certain the agent is, and what it recommends
-with the approval each action needs.
+with the approval each action needs. The first tab draws the case where it sits in the
+graph: the card, the transactions, the devices and the linked cards around it.
 
 Dressed in the Hacker House Goa 2026 theme; the styles are in app/theme.css.
 
@@ -27,7 +28,8 @@ from typing import Any, TypeVar
 import streamlit as st
 
 from fraudtrail.answer.schema import ActionItem, Answer
-from fraudtrail.config import Settings, load_settings
+from fraudtrail.config import ConfigError, Settings, load_settings
+from fraudtrail.graph.case_graph import CaseGraph, Kind, draw
 from fraudtrail.graph.client import GraphClient, GraphError
 from fraudtrail.graph.memory import GraphMemory
 from fraudtrail.investigate import constants as ic
@@ -37,6 +39,7 @@ from fraudtrail.wording import counted
 REPO = Path(__file__).resolve().parent.parent
 CASES_DIR = REPO / "cases"
 THEME_CSS = Path(__file__).resolve().parent / "theme.css"
+GRAPH_PAGE = Path(__file__).resolve().parent / "case_graph.html"
 
 T = TypeVar("T")
 
@@ -67,6 +70,10 @@ RING_MIN_ANONYMOUS_SHARE = 0.5
 # How many rings the view lists, and how many cards each one shows before trimming.
 MAX_RINGS_SHOWN = 10
 MAX_RING_CARDS_SHOWN = 40
+
+# Height of the investigation graph. Tall enough for a ring of twenty cards around a device
+# to spread out, short enough to leave the tabs in view on a laptop screen.
+GRAPH_HEIGHT_PX = 600
 
 # How many connected cards and device profiles the evidence tab lists before trimming.
 MAX_CONNECTED_SHOWN = 12
@@ -127,6 +134,11 @@ def read_case(case_id: str, stamp: float) -> dict[str, Any]:
     return dict(graph_memory().read(case_id))
 
 
+@st.cache_data(show_spinner="Reading the case's neighbourhood from the graph…")
+def read_neighbourhood(case_id: str, stamp: float) -> dict[str, Any]:
+    return dict(graph_memory().neighbourhood(case_id))
+
+
 @st.cache_data(show_spinner="Running label propagation over shared devices…")
 def find_rings(min_cards: int) -> list[tuple[list[str], list[str]]]:
     """Communities of cards that share a device, found by the graph algorithm.
@@ -178,6 +190,9 @@ def from_graph(read: Callable[[], T]) -> T | None:
     while True:
         try:
             result = read()
+        except ConfigError as exc:
+            notice.warning(str(exc))
+            return None
         except GraphError as exc:
             reason = str(exc)
             waking = any(marker in reason for marker in WAKING_MARKERS)
@@ -381,6 +396,43 @@ def show_evidence(answer: Answer) -> None:
         )
 
 
+def graph_page(graph: CaseGraph) -> str:
+    # The data goes in as JSON inside a script; escaping "<" keeps any value from closing it.
+    data = json.dumps(graph.for_drawing()).replace("<", r"\u003c")
+    return GRAPH_PAGE.read_text(encoding="utf-8").replace("__GRAPH__", data)
+
+
+def show_graph(case_id: str) -> None:
+    st.subheader("Investigation graph")
+    st.caption(
+        "Read from TigerGraph: the case, the card it was opened on and its owner, the "
+        "transactions it flagged with their device and billing region, the linked cards, and "
+        "the closed cases it drew on. Solid lines are evidence in the graph; dashed yellow "
+        "lines are the links this investigation wrote."
+    )
+    stored = from_graph(lambda: read_neighbourhood(case_id, cases_stamp()))
+    if stored is None:
+        return
+    graph = draw(stored)
+    if not graph.nodes:
+        st.warning("This case is not in the graph yet. Run scripts/run_agent.py.")
+        return
+    txns = graph.count(Kind.FLAGGED, Kind.TRANSACTION)
+    cards = graph.count(Kind.CARD, Kind.OWNER_CARD, Kind.LINKED_CARD)
+    counts = [
+        counted(txns, "transaction"),
+        counted(cards, "card"),
+        counted(graph.count(Kind.DEVICE), "device profile"),
+        counted(graph.count(Kind.CLOSED_CASE), "closed case"),
+    ]
+    st.html(
+        "<div class='ft-counts'>"
+        + "".join(f"<span class='ft-badge'>{escape(c)}</span>" for c in counts)
+        + "</div>"
+    )
+    st.iframe(graph_page(graph), height=GRAPH_HEIGHT_PX)
+
+
 def show_progression(case_id: str) -> None:
     st.subheader("Case progression")
     st.caption("Read back from the graph: every step this investigation took, in order.")
@@ -444,16 +496,19 @@ def show_case_view(answers: dict[str, Answer]) -> None:
         with st.container(key="panel_case"):
             show_case_header(answer)
         with st.container(key="panel_tabs"):
-            tabs = st.tabs(["Progression", "Evidence", "Uncertainty", "Actions", "Report"])
+            graph_case_id = answer.case.graph_case_id or f"CASE-{case_id}"
+            tabs = st.tabs(["Graph", "Progression", "Evidence", "Uncertainty", "Actions", "Report"])
             with tabs[0]:
-                show_progression(answer.case.graph_case_id or f"CASE-{case_id}")
+                show_graph(graph_case_id)
             with tabs[1]:
-                show_evidence(answer)
+                show_progression(graph_case_id)
             with tabs[2]:
-                show_uncertainty(answer)
+                show_evidence(answer)
             with tabs[3]:
-                show_actions(answer)
+                show_uncertainty(answer)
             with tabs[4]:
+                show_actions(answer)
+            with tabs[5]:
                 show_report(answer)
 
 
