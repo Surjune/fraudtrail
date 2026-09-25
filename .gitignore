@@ -15,7 +15,6 @@ __pycache__/
 # Editors and OS
 .vscode/
 .idea/
-.claude/
 .DS_Store
 Thumbs.db
 
