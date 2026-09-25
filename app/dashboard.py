@@ -17,15 +17,18 @@ Run with:  uv run streamlit run app/dashboard.py
 from __future__ import annotations
 
 import json
+import re
+import time
+from collections.abc import Callable
 from html import escape
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import streamlit as st
 
 from fraudtrail.answer.schema import ActionItem, Answer
 from fraudtrail.config import Settings, load_settings
-from fraudtrail.graph.client import GraphClient
+from fraudtrail.graph.client import GraphClient, GraphError
 from fraudtrail.graph.memory import GraphMemory
 from fraudtrail.investigate import constants as ic
 from fraudtrail.policy.actions import Route
@@ -34,6 +37,18 @@ from fraudtrail.wording import counted
 REPO = Path(__file__).resolve().parent.parent
 CASES_DIR = REPO / "cases"
 THEME_CSS = Path(__file__).resolve().parent / "theme.css"
+
+T = TypeVar("T")
+
+# Savanna's auto-stop pauses an idle workspace. Its first request back is answered with a
+# "Starting workspace" page, or a 5xx, while it resumes, which takes a minute or two. The
+# dashboard waits that long rather than showing a visitor a traceback.
+WAKING_MARKERS = ("Starting workspace", "500 Server Error", "502", "503", "504")
+GRAPH_WAKE_TIMEOUT_S = 180
+GRAPH_WAKE_POLL_S = 8
+
+# How much of an unexpected graph error to show, once markup is stripped from it.
+MAX_ERROR_CHARS = 200
 
 # The exam window, for the ring search.
 RING_FROM = "2016-11-01 00:00:00"
@@ -154,6 +169,33 @@ def find_rings(min_cards: int) -> list[tuple[list[str], list[str]]]:
         rings.append((sorted(members), linking))
     rings.sort(key=lambda ring: len(ring[0]), reverse=True)
     return rings
+
+
+def from_graph(read: Callable[[], T]) -> T | None:
+    """A graph read that waits out a workspace auto-stop has paused, instead of failing."""
+    notice = st.empty()
+    deadline = time.monotonic() + GRAPH_WAKE_TIMEOUT_S
+    while True:
+        try:
+            result = read()
+        except GraphError as exc:
+            reason = str(exc)
+            waking = any(marker in reason for marker in WAKING_MARKERS)
+            if waking and time.monotonic() < deadline:
+                notice.info(
+                    "The TigerGraph workspace is waking up after auto-stop. This takes a "
+                    "minute or two, and the case will appear here on its own."
+                )
+                time.sleep(GRAPH_WAKE_POLL_S)
+                continue
+            if waking:
+                notice.warning("The graph is still starting up. Refresh the page in a minute.")
+            else:
+                plain = re.sub(r"<[^>]+>", " ", reason)
+                notice.warning(f"The graph did not answer: {plain[:MAX_ERROR_CHARS]}")
+            return None
+        notice.empty()
+        return result
 
 
 def money(value: float) -> str:
@@ -342,7 +384,9 @@ def show_evidence(answer: Answer) -> None:
 def show_progression(case_id: str) -> None:
     st.subheader("Case progression")
     st.caption("Read back from the graph: every step this investigation took, in order.")
-    stored = read_case(case_id, cases_stamp())
+    stored = from_graph(lambda: read_case(case_id, cases_stamp()))
+    if stored is None:
+        return
     events = stored.get("events")
     if not isinstance(events, list) or not events:
         st.warning("This case is not in the graph yet. Run scripts/run_agent.py.")
@@ -381,7 +425,7 @@ def show_report(answer: Answer) -> None:
 def show_case_view(answers: dict[str, Answer]) -> None:
     case_ids = list(answers)
     requested = st.query_params.get("case", "")
-    main, side = st.columns([3.3, 1], gap="medium")
+    main, side = st.container(key="caseview").columns([3.3, 1], gap="medium")
     with side, st.container(key="panel_pack"):
         label("Case")
         case_id = str(
@@ -447,7 +491,9 @@ def show_rings() -> None:
         min_cards = st.slider("Smallest ring to show", 3, 25, 8)
         if not st.button("Run the graph algorithm"):
             return
-        rings = find_rings(min_cards)
+        rings = from_graph(lambda: find_rings(min_cards))
+        if rings is None:
+            return
         st.write(f"{counted(len(rings), 'ring')} of {min_cards} or more cards")
         for index, (cards, devices) in enumerate(rings[:MAX_RINGS_SHOWN]):
             linked_by = devices[0] if len(devices) == 1 else counted(len(devices), "device profile")

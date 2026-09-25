@@ -573,3 +573,62 @@ p code, li code {
   text-transform: uppercase;
   color: var(--faint);
 }
+
+/* ---- Phones -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  [data-testid="stMainBlockContainer"] { padding: 0.6rem 0.85rem 2.5rem; }
+
+  /* A fixed backdrop repaints on every scroll frame in mobile browsers. */
+  [data-testid="stApp"] { background-attachment: scroll; }
+
+  .ft-header { padding-bottom: 0.6rem; }
+  .ft-title { font-size: 1.3rem !important; }
+  .ft-status { display: none; }
+
+  /* The three views stay on one line and scroll sideways rather than wrapping. */
+  .st-key-nav [data-testid="stRadioGroup"] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .st-key-nav [data-testid="stRadioOption"] {
+    flex: 0 0 auto;
+    padding: 0.4rem 0.7rem;
+    white-space: nowrap;
+  }
+  .ft-event { text-align: left; white-space: normal; padding-top: 0; }
+
+  /* The case pack comes first, so a case is one tap away rather than a page away. */
+  [data-testid="stColumn"]:has(.st-key-panel_pack) { order: -1; }
+  .st-key-panel_pack { position: static; }
+
+  .ft-chips {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.4rem;
+    padding-bottom: 0.3rem;
+    scrollbar-width: none;
+  }
+  .ft-chip { flex: 0 0 auto; gap: 0.5rem; }
+
+  [class*="st-key-panel"] { padding: 0.85rem 0.9rem 0.95rem; border-radius: 0.75rem; }
+
+  .ft-case-id { font-size: 1.75rem; }
+  .ft-stats { gap: 0.55rem; }
+  .ft-stat { padding: 0.7rem 0.8rem 0.75rem; }
+  .ft-stat span { font-size: 0.56rem; letter-spacing: 0.12em; }
+  .ft-stat b { font-size: 1.45rem; }
+  .ft-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 0.65rem; }
+
+  h3 { font-size: 1.35rem !important; }
+
+  /* All five case tabs stay in view, on two rows if need be, instead of hiding behind an
+     arrow at the edge of the screen. */
+  [role="tablist"] { flex-wrap: wrap; row-gap: 0.35rem; overflow: visible !important; }
+  [data-testid="stTab"] { padding: 0.35rem 0.6rem !important; }
+
+  /* A progression step: number beside its kind, the detail underneath at full width. */
+  .ft-step { grid-template-columns: 1.7rem 1fr; row-gap: 0.15rem; }
+  .ft-step .k, .ft-step .d { grid-column: 2; }
+}

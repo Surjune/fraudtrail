@@ -338,6 +338,14 @@ uv run python scripts/evaluate.py --n 120
 uv run streamlit run app/dashboard.py
 ```
 
+To host the dashboard on an Ubuntu server with a domain pointed at it, clone the repo, add
+`.env`, open ports 80 and 443, and run the script below. It runs the dashboard as a service
+behind Caddy, which obtains and renews the HTTPS certificate itself.
+
+```bash
+bash scripts/serve_https.sh your.domain.example
+```
+
 Checks:
 
 ```bash
