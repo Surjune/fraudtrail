@@ -7,6 +7,10 @@ must approve it. Every finished case is written back into the graph as memory fo
 
 Built for the TigerGraph × Hacker House Goa challenge on the HHGOA_IEEE dataset.
 
+**Live dashboard:** [fraudtrail.lightninglogics.me](https://fraudtrail.lightninglogics.me/?case=HHG-014),
+reading from the TigerGraph Savanna workspace. The workspace pauses itself when idle, so the
+first visit after a quiet spell waits a minute or two while it resumes.
+
 ![A finished investigation and its neighbourhood, read back from the graph](docs/images/case-view.png)
 
 ## Contents
@@ -353,7 +357,8 @@ uv run streamlit run app/dashboard.py
 
 To host the dashboard on an Ubuntu server with a domain pointed at it, clone the repo, add
 `.env`, open ports 80 and 443, and run the script below. It runs the dashboard as a service
-behind Caddy, which obtains and renews the HTTPS certificate itself.
+behind Caddy, which obtains and renews the HTTPS certificate itself. Running it again after a
+`git pull` deploys the new version.
 
 ```bash
 bash scripts/serve_https.sh your.domain.example

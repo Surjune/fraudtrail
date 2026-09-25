@@ -36,8 +36,12 @@ WantedBy=multi-user.target
 EOF
 sudo systemctl daemon-reload
 sudo systemctl enable fraudtrail >/dev/null
-# Restarting first frees port 80, which an earlier version of this service held.
-sudo systemctl restart fraudtrail
+# Stopping first frees port 80, which an earlier version of this service held. A dashboard
+# started by hand would keep port 8501 and go on serving the old code while the service failed
+# to start, so any such process goes too.
+sudo systemctl stop fraudtrail
+pkill -u "$USER" -f "streamlit run app/dashboard.py" || true
+sudo systemctl start fraudtrail
 
 echo "== installing Caddy"
 if ! command -v caddy >/dev/null; then
